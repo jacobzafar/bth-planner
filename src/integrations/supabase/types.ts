@@ -14,7 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          program_name: string | null
+          setup_complete: boolean | null
+          start_year: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          program_name?: string | null
+          setup_complete?: boolean | null
+          start_year?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          program_name?: string | null
+          setup_complete?: boolean | null
+          start_year?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_events: {
+        Row: {
+          course_code: string | null
+          created_at: string
+          description: string | null
+          due_date: string
+          due_time: string | null
+          event_type: string
+          id: string
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          course_code?: string | null
+          created_at?: string
+          description?: string | null
+          due_date: string
+          due_time?: string | null
+          event_type?: string
+          id?: string
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          course_code?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          due_time?: string | null
+          event_type?: string
+          id?: string
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_courses: {
+        Row: {
+          course_code: string
+          course_name: string
+          created_at: string
+          hp: number
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          course_code: string
+          course_name: string
+          created_at?: string
+          hp?: number
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          course_code?: string
+          course_name?: string
+          created_at?: string
+          hp?: number
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

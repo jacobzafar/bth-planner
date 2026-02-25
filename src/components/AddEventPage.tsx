@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserData, StudyEvent, EventType } from '@/lib/types';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,69 +11,89 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface AddEventPageProps {
-  userData: UserData;
-  onAddEvent: (event: Omit<StudyEvent, 'id'>) => void;
+  userId: string;
 }
 
-export default function AddEventPage({ userData, onAddEvent }: AddEventPageProps) {
+interface UserCourse {
+  id: string;
+  course_code: string;
+  course_name: string;
+}
+
+export default function AddEventPage({ userId }: AddEventPageProps) {
   const navigate = useNavigate();
+  const [courses, setCourses] = useState<UserCourse[]>([]);
   const [title, setTitle] = useState('');
-  const [courseId, setCourseId] = useState('');
-  const [type, setType] = useState<EventType>('assignment');
+  const [courseCode, setCourseCode] = useState('');
+  const [type, setType] = useState('assignment');
   const [dueDate, setDueDate] = useState('');
   const [dueTime, setDueTime] = useState('23:59');
   const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    supabase.from('user_courses').select('id, course_code, course_name').eq('user_id', userId)
+      .then(({ data }) => setCourses((data || []) as UserCourse[]));
+  }, [userId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !courseId || !dueDate) {
-      toast.error('Please fill in all required fields');
+    if (!title.trim() || !dueDate) {
+      toast.error('Fyll i alla obligatoriska fält');
       return;
     }
     const today = new Date().toISOString().split('T')[0];
     if (dueDate < today) {
-      toast.warning('Warning: Due date is in the past');
+      toast.warning('Varning: Datumet har redan passerat');
     }
-    onAddEvent({
+    setLoading(true);
+    const { error } = await supabase.from('study_events').insert({
+      user_id: userId,
       title: title.trim(),
-      courseId,
-      type,
-      dueDate,
-      dueTime,
-      description: description.trim(),
+      course_code: courseCode || null,
+      event_type: type,
+      due_date: dueDate,
+      due_time: dueTime || null,
+      description: description.trim() || null,
       status: 'upcoming',
     });
-    toast.success('Event saved!');
-    navigate('/');
+
+    if (error) {
+      toast.error('Kunde inte spara händelsen');
+    } else {
+      toast.success('Händelse sparad!');
+      navigate('/');
+    }
+    setLoading(false);
   };
 
   return (
     <div className="max-w-lg mx-auto md:mt-12 animate-slide-up">
       <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 gap-2">
-        <ArrowLeft className="h-4 w-4" /> Back
+        <ArrowLeft className="h-4 w-4" /> Tillbaka
       </Button>
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-heading">Add Event</CardTitle>
+          <CardTitle className="font-heading">Lägg till händelse</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="title">Event Title *</Label>
-              <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Assignment 1" required />
+              <Label htmlFor="title">Titel *</Label>
+              <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="t.ex. Inlämning 1" required />
             </div>
 
             <div>
-              <Label htmlFor="course">Course *</Label>
-              <Select value={courseId} onValueChange={setCourseId}>
+              <Label htmlFor="course">Kurs</Label>
+              <Select value={courseCode} onValueChange={setCourseCode}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select course" />
+                  <SelectValue placeholder="Välj kurs" />
                 </SelectTrigger>
                 <SelectContent>
-                  {userData.courses.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.code} - {c.name}
+                  {courses.map(c => (
+                    <SelectItem key={c.id} value={c.course_code}>
+                      {c.course_code} - {c.course_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -81,41 +101,42 @@ export default function AddEventPage({ userData, onAddEvent }: AddEventPageProps
             </div>
 
             <div>
-              <Label htmlFor="type">Type</Label>
-              <Select value={type} onValueChange={(v) => setType(v as EventType)}>
+              <Label htmlFor="type">Typ</Label>
+              <Select value={type} onValueChange={setType}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="assignment">📝 Assignment</SelectItem>
-                  <SelectItem value="lab">🧪 Lab</SelectItem>
-                  <SelectItem value="exam">📋 Exam</SelectItem>
+                  <SelectItem value="assignment">📝 Uppgift</SelectItem>
+                  <SelectItem value="lab">🧪 Labb</SelectItem>
+                  <SelectItem value="exam">📋 Tenta</SelectItem>
+                  <SelectItem value="other">📌 Övrigt</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="dueDate">Due Date *</Label>
+                <Label htmlFor="dueDate">Datum *</Label>
                 <Input id="dueDate" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required />
               </div>
               <div>
-                <Label htmlFor="dueTime">Due Time</Label>
+                <Label htmlFor="dueTime">Tid</Label>
                 <Input id="dueTime" type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="desc">Description</Label>
-              <Textarea id="desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes..." rows={3} />
+              <Label htmlFor="desc">Beskrivning</Label>
+              <Textarea id="desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Valfria anteckningar..." rows={3} />
             </div>
 
             <div className="flex gap-3">
               <Button type="button" variant="outline" onClick={() => navigate(-1)} className="flex-1">
-                Cancel
+                Avbryt
               </Button>
-              <Button type="submit" className="flex-1 gap-2">
-                <Save className="h-4 w-4" /> Save Event
+              <Button type="submit" className="flex-1 gap-2" disabled={loading}>
+                <Save className="h-4 w-4" /> {loading ? 'Sparar...' : 'Spara'}
               </Button>
             </div>
           </form>
