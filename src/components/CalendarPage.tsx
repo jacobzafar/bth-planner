@@ -1,40 +1,45 @@
-import { useMemo, useState } from 'react';
-import { UserData } from '@/lib/types';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameDay } from 'date-fns';
+import { sv } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CalendarPageProps {
-  userData: UserData;
+  userId: string;
 }
 
-export default function CalendarPage({ userData }: CalendarPageProps) {
+interface StudyEvent {
+  id: string;
+  title: string;
+  event_type: string;
+  due_date: string;
+  status: string;
+}
+
+export default function CalendarPage({ userId }: CalendarPageProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [events, setEvents] = useState<StudyEvent[]>([]);
+
+  useEffect(() => {
+    supabase.from('study_events').select('id, title, event_type, due_date, status').eq('user_id', userId)
+      .then(({ data }) => setEvents((data || []) as StudyEvent[]));
+  }, [userId]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-  // Pad start: getDay returns 0=Sun, we want Mon=0
   const startPad = (getDay(monthStart) + 6) % 7;
 
-  const courseMap = useMemo(() => {
-    const m = new Map<string, string>();
-    userData.courses.forEach(c => m.set(c.id, c.code));
-    return m;
-  }, [userData.courses]);
-
   const eventsByDate = useMemo(() => {
-    const map = new Map<string, typeof userData.events>();
-    userData.events.forEach(e => {
-      const key = e.dueDate;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(e);
+    const map = new Map<string, StudyEvent[]>();
+    events.forEach(e => {
+      if (!map.has(e.due_date)) map.set(e.due_date, []);
+      map.get(e.due_date)!.push(e);
     });
     return map;
-  }, [userData.events]);
+  }, [events]);
 
   const typeColor: Record<string, string> = {
     assignment: 'bg-info',
@@ -52,28 +57,25 @@ export default function CalendarPage({ userData }: CalendarPageProps) {
             <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <CardTitle className="font-heading">{format(currentMonth, 'MMMM yyyy')}</CardTitle>
+            <CardTitle className="font-heading">{format(currentMonth, 'MMMM yyyy', { locale: sv })}</CardTitle>
             <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Legend */}
           <div className="flex gap-4 mb-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-info" /> Assignment</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-success" /> Lab</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-destructive" /> Exam</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-info" /> Uppgift</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-success" /> Labb</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-destructive" /> Tenta</span>
           </div>
 
-          {/* Day headers */}
           <div className="grid grid-cols-7 gap-px mb-1">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+            {['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'].map(d => (
               <div key={d} className="text-center text-xs font-semibold text-muted-foreground py-2">{d}</div>
             ))}
           </div>
 
-          {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-px">
             {Array.from({ length: startPad }).map((_, i) => (
               <div key={`pad-${i}`} className="min-h-[80px] md:min-h-[100px] bg-muted/30 rounded-sm" />
@@ -96,17 +98,17 @@ export default function CalendarPage({ userData }: CalendarPageProps) {
                     {dayEvents.slice(0, 3).map(e => (
                       <div
                         key={e.id}
-                        className={`${typeColor[e.type]} rounded px-1 py-0.5 text-[10px] leading-tight truncate ${
+                        className={`${typeColor[e.event_type] || 'bg-muted'} rounded px-1 py-0.5 text-[10px] leading-tight truncate ${
                           e.status === 'complete' ? 'opacity-40 line-through' : ''
                         }`}
                         style={{ color: 'white' }}
-                        title={`${e.title} (${courseMap.get(e.courseId) || ''})`}
+                        title={e.title}
                       >
                         {e.title}
                       </div>
                     ))}
                     {dayEvents.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} more</span>
+                      <span className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} till</span>
                     )}
                   </div>
                 </div>
