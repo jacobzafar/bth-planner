@@ -8,7 +8,7 @@ import CourseStatusPage from '@/components/CourseStatusPage';
 import AppLayout from '@/components/AppLayout';
 import Dashboard from '@/components/Dashboard';
 import AddEventPage from '@/components/AddEventPage';
-import CoursesPage from '@/components/CoursesPage';
+
 import CalendarPage from '@/components/CalendarPage';
 import SettingsPage from '@/components/SettingsPage';
 
