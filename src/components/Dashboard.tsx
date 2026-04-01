@@ -252,6 +252,12 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
                       <Badge className={`${typeColor[event.event_type] || 'bg-muted text-muted-foreground'} text-xs`}>
                         {typeLabel[event.event_type] || event.event_type}
                       </Badge>
+                      {(() => {
+                        const linked = subtasks.find(s => s.event_id === event.id);
+                        return linked && linked.hp > 0 ? (
+                          <Badge variant="outline" className="text-xs">{linked.hp} HP</Badge>
+                        ) : null;
+                      })()}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>📅 {formatDueLabel(event.due_date, event.due_time)}</span>
