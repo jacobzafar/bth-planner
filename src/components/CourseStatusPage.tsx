@@ -34,6 +34,9 @@ interface Subtask {
   course_id: string;
   title: string;
   completed: boolean;
+  due_date: string | null;
+  hp: number;
+  event_id: string | null;
 }
 
 export default function CourseStatusPage({ userId, programName }: CourseStatusPageProps) {
