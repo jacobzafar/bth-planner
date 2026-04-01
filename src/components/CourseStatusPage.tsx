@@ -191,15 +191,40 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     const text = (newSubtaskText[courseId] || '').trim();
     if (!text) return;
 
+    const dueDate = newSubtaskDate[courseId] || null;
+    const hp = parseFloat(newSubtaskHp[courseId] || '0') || 0;
+    const course = courses.find(c => c.id === courseId);
+
+    // Create calendar event if date is set
+    let eventId: string | null = null;
+    if (dueDate && course) {
+      const { data: eventData, error: eventError } = await supabase.from('study_events').insert({
+        user_id: userId,
+        title: text,
+        course_code: course.course_code,
+        event_type: 'assignment',
+        due_date: dueDate,
+        status: 'upcoming',
+      }).select('id').single();
+
+      if (!eventError && eventData) {
+        eventId = eventData.id;
+      }
+    }
+
     const { data, error } = await supabase.from('course_subtasks').insert({
       user_id: userId, course_id: courseId, title: text,
-    }).select('id, course_id, title, completed').single();
+      due_date: dueDate, hp, event_id: eventId,
+    }).select('id, course_id, title, completed, due_date, hp, event_id').single();
 
     if (error) {
       toast.error('Kunde inte lägga till delmoment');
     } else if (data) {
       setSubtasks(prev => [...prev, data as Subtask]);
       setNewSubtaskText(prev => ({ ...prev, [courseId]: '' }));
+      setNewSubtaskDate(prev => ({ ...prev, [courseId]: '' }));
+      setNewSubtaskHp(prev => ({ ...prev, [courseId]: '' }));
+      toast.success(dueDate ? 'Delmoment tillagt och kalenderhändelse skapad!' : 'Delmoment tillagt!');
     }
   };
 
@@ -210,13 +235,23 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
     if (!error) {
       setSubtasks(prev => prev.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s));
+      // Also update the linked event status
+      if (subtask.event_id) {
+        await supabase.from('study_events')
+          .update({ status: newCompleted ? 'complete' : 'upcoming' })
+          .eq('id', subtask.event_id);
+      }
     }
   };
 
-  const deleteSubtask = async (id: string) => {
-    const { error } = await supabase.from('course_subtasks').delete().eq('id', id);
+  const deleteSubtask = async (subtask: Subtask) => {
+    const { error } = await supabase.from('course_subtasks').delete().eq('id', subtask.id);
     if (!error) {
-      setSubtasks(prev => prev.filter(s => s.id !== id));
+      setSubtasks(prev => prev.filter(s => s.id !== subtask.id));
+      // Also delete linked event
+      if (subtask.event_id) {
+        await supabase.from('study_events').delete().eq('id', subtask.event_id);
+      }
     }
   };
 
