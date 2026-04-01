@@ -34,6 +34,9 @@ interface Subtask {
   course_id: string;
   title: string;
   completed: boolean;
+  due_date: string | null;
+  hp: number;
+  event_id: string | null;
 }
 
 export default function CourseStatusPage({ userId, programName }: CourseStatusPageProps) {
@@ -46,6 +49,8 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [addYear, setAddYear] = useState('1');
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
   const [newSubtaskText, setNewSubtaskText] = useState<Record<string, string>>({});
+  const [newSubtaskDate, setNewSubtaskDate] = useState<Record<string, string>>({});
+  const [newSubtaskHp, setNewSubtaskHp] = useState<Record<string, string>>({});
 
   const programTemplate = useMemo(() => {
     if (!programName) return null;
@@ -120,7 +125,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     const [coursesRes, subtasksRes] = await Promise.all([
       supabase.from('user_courses').select('*').eq('user_id', userId)
         .order('year', { ascending: true }).order('course_name', { ascending: true }),
-      supabase.from('course_subtasks').select('id, course_id, title, completed').eq('user_id', userId)
+      supabase.from('course_subtasks').select('id, course_id, title, completed, due_date, hp, event_id').eq('user_id', userId)
         .order('created_at', { ascending: true }),
     ]);
 
@@ -186,15 +191,40 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     const text = (newSubtaskText[courseId] || '').trim();
     if (!text) return;
 
+    const dueDate = newSubtaskDate[courseId] || null;
+    const hp = parseFloat(newSubtaskHp[courseId] || '0') || 0;
+    const course = courses.find(c => c.id === courseId);
+
+    // Create calendar event if date is set
+    let eventId: string | null = null;
+    if (dueDate && course) {
+      const { data: eventData, error: eventError } = await supabase.from('study_events').insert({
+        user_id: userId,
+        title: text,
+        course_code: course.course_code,
+        event_type: 'assignment',
+        due_date: dueDate,
+        status: 'upcoming',
+      }).select('id').single();
+
+      if (!eventError && eventData) {
+        eventId = eventData.id;
+      }
+    }
+
     const { data, error } = await supabase.from('course_subtasks').insert({
       user_id: userId, course_id: courseId, title: text,
-    }).select('id, course_id, title, completed').single();
+      due_date: dueDate, hp, event_id: eventId,
+    }).select('id, course_id, title, completed, due_date, hp, event_id').single();
 
     if (error) {
       toast.error('Kunde inte lägga till delmoment');
     } else if (data) {
       setSubtasks(prev => [...prev, data as Subtask]);
       setNewSubtaskText(prev => ({ ...prev, [courseId]: '' }));
+      setNewSubtaskDate(prev => ({ ...prev, [courseId]: '' }));
+      setNewSubtaskHp(prev => ({ ...prev, [courseId]: '' }));
+      toast.success(dueDate ? 'Delmoment tillagt och kalenderhändelse skapad!' : 'Delmoment tillagt!');
     }
   };
 
@@ -205,13 +235,23 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
     if (!error) {
       setSubtasks(prev => prev.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s));
+      // Also update the linked event status
+      if (subtask.event_id) {
+        await supabase.from('study_events')
+          .update({ status: newCompleted ? 'complete' : 'upcoming' })
+          .eq('id', subtask.event_id);
+      }
     }
   };
 
-  const deleteSubtask = async (id: string) => {
-    const { error } = await supabase.from('course_subtasks').delete().eq('id', id);
+  const deleteSubtask = async (subtask: Subtask) => {
+    const { error } = await supabase.from('course_subtasks').delete().eq('id', subtask.id);
     if (!error) {
-      setSubtasks(prev => prev.filter(s => s.id !== id));
+      setSubtasks(prev => prev.filter(s => s.id !== subtask.id));
+      // Also delete linked event
+      if (subtask.event_id) {
+        await supabase.from('study_events').delete().eq('id', subtask.event_id);
+      }
     }
   };
 
@@ -431,7 +471,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                               </CollapsibleTrigger>
                               <CollapsibleContent className="mt-2 space-y-1.5">
                                 {courseSubtasks.map(sub => (
-                                  <div key={sub.id} className="flex items-center gap-2 group">
+                                  <div key={sub.id} className="flex items-center gap-2 group py-1">
                                     <button onClick={() => toggleSubtask(sub)} className="shrink-0">
                                       {sub.completed ? (
                                         <Check className="h-4 w-4 text-success" />
@@ -439,29 +479,55 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                                         <Square className="h-4 w-4 text-muted-foreground" />
                                       )}
                                     </button>
-                                    <span className={`text-sm flex-1 ${sub.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                                      {sub.title}
-                                    </span>
+                                    <div className={`flex-1 min-w-0 ${sub.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                                      <span className="text-sm">{sub.title}</span>
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        {sub.due_date && <span>📅 {sub.due_date}</span>}
+                                        {sub.hp > 0 && <span>• {sub.hp} hp</span>}
+                                        {sub.event_id && <span>• 📌 I kalendern</span>}
+                                      </div>
+                                    </div>
                                     <button
-                                      onClick={() => deleteSubtask(sub.id)}
+                                      onClick={() => deleteSubtask(sub)}
                                       className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                                     >
                                       <X className="h-3 w-3" />
                                     </button>
                                   </div>
                                 ))}
-                                <div className="flex items-center gap-2">
+                                <div className="space-y-2 pt-1 border-t border-border/30">
                                   <Input
-                                    placeholder="Lägg till delmoment..."
+                                    placeholder="Namn på delmoment..."
                                     value={newSubtaskText[course.id] || ''}
                                     onChange={e => setNewSubtaskText(prev => ({ ...prev, [course.id]: e.target.value }))}
                                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(course.id); } }}
                                     className="h-8 text-sm"
                                   />
-                                  <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0"
-                                    onClick={() => handleAddSubtask(course.id)} disabled={!(newSubtaskText[course.id] || '').trim()}>
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="date"
+                                      placeholder="Datum"
+                                      value={newSubtaskDate[course.id] || ''}
+                                      onChange={e => setNewSubtaskDate(prev => ({ ...prev, [course.id]: e.target.value }))}
+                                      className="h-8 text-sm flex-1"
+                                    />
+                                    <Input
+                                      type="number"
+                                      placeholder="HP"
+                                      step="0.5"
+                                      min="0"
+                                      value={newSubtaskHp[course.id] || ''}
+                                      onChange={e => setNewSubtaskHp(prev => ({ ...prev, [course.id]: e.target.value }))}
+                                      className="h-8 text-sm w-20"
+                                    />
+                                    <Button size="sm" variant="default" className="h-8 px-3 shrink-0 gap-1"
+                                      onClick={() => handleAddSubtask(course.id)} disabled={!(newSubtaskText[course.id] || '').trim()}>
+                                      <Plus className="h-3 w-3" /> Lägg till
+                                    </Button>
+                                  </div>
+                                  {newSubtaskDate[course.id] && (
+                                    <p className="text-xs text-muted-foreground">📌 En kalenderhändelse skapas automatiskt</p>
+                                  )}
                                 </div>
                               </CollapsibleContent>
                             </Collapsible>
