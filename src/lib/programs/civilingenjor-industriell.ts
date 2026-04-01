@@ -1,0 +1,56 @@
+import { ProgramTemplate } from './types';
+
+export const civilingenjorIndustriell: ProgramTemplate = {
+  name: 'Civilingenjör i industriell ekonomi och management, 300 HP',
+  courses: [
+    // År 1
+    { name: 'Grunderna i industriell ekonomi', code: 'IY1418', hp: 6, year: 1, semester: 'HT' },
+    { name: 'Linjär algebra', code: 'MA1498', hp: 6, year: 1, semester: 'HT' },
+    { name: 'Introduktion till ingenjörsrollen', code: 'IY1445', hp: 6, year: 1, semester: 'HT' },
+    { name: 'Programmering och problemlösning med Python', code: 'DV1574', hp: 6, year: 1, semester: 'HT' },
+    { name: 'Envariabelanalys 1: funktioner och differentialkalkyl', code: 'MA1499', hp: 6, year: 1, semester: 'HT' },
+    { name: 'Kraft och energi', code: 'FY1436', hp: 6, year: 1, semester: 'VT' },
+    { name: 'Envariabelanalys 2: differentialekvationer och integralkalkyl', code: 'MA1500', hp: 6, year: 1, semester: 'VT' },
+    { name: 'Grundkurs i hållbar utveckling', code: 'SL1423', hp: 6, year: 1, semester: 'VT' },
+    { name: 'Industriell verksamhetsstyrning', code: 'IY1451', hp: 6, year: 1, semester: 'VT' },
+    { name: 'Makroekonomi', code: 'IY1447', hp: 6, year: 1, semester: 'VT' },
+    // År 2
+    { name: 'Mikroekonomi för beslutsfattare', code: 'IY1446', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Flervariabelanalys', code: 'MA1501', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Digitalisering och affärsutveckling', code: 'IY1444', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Vågfysik', code: 'FY1437', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Matematisk statistik', code: 'MS1416', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Grundläggande ekonometri', code: 'IY1456', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Beslutsfattande i organisationer', code: 'IY1454', hp: 6, year: 2, semester: 'VT' },
+    { name: 'Programmering i Python, fortsättningskurs', code: 'DV1582', hp: 6, year: 2, semester: 'VT' },
+    { name: 'Supply chain management', code: 'IY1453', hp: 6, year: 2, semester: 'VT' },
+    { name: 'Optimering', code: 'MA1502', hp: 6, year: 2, semester: 'VT' },
+    // År 3
+    { name: 'Dynamiska system och återkoppling', code: 'ET1558', hp: 6, year: 3, semester: 'HT' },
+    { name: 'Programvaruutveckling', code: 'PA1484', hp: 6, year: 3, semester: 'HT' },
+    { name: 'Tillämpad operationsanalys', code: 'IY1452', hp: 6, year: 3, semester: 'HT' },
+    { name: 'Finansiell ekonomi', code: 'IY1457', hp: 6, year: 3, semester: 'VT' },
+    { name: 'Ekonomisk analys för strategiskt beslutsfattande', code: 'IY1448', hp: 6, year: 3, semester: 'VT' },
+    { name: 'Databasteknik', code: 'DV1663', hp: 6, year: 3, semester: 'VT' },
+    { name: 'Kandidatarbete i teknik för industriell ekonomi och management', code: 'TE1432', hp: 18, year: 3, semester: 'VT' },
+    { name: 'Företag, organisation och marknad', code: 'IY1455', hp: 6, year: 3, semester: 'VT' },
+    // År 4
+    { name: 'Ledarskap i högteknologiska och kunskapsintensiva organisationer', code: 'IY2653', hp: 6, year: 4, semester: 'HT' },
+    { name: 'Business Analytics', code: 'IY2640', hp: 6, year: 4, semester: 'HT' },
+    { name: 'Technology venture 1: Innovation och affärsutveckling', code: 'IY2649', hp: 6, year: 4, semester: 'HT' },
+    { name: 'Technology venture 2: kommersialisering av innovationer', code: 'IY2650', hp: 6, year: 4, semester: 'HT' },
+    { name: 'Industriell organisation', code: 'IY2634', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Avancerad ekonometri', code: 'IY2637', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Industriell projektledning inom Business Analytics', code: 'IY2646', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Mål- och prestationsstyrning inom industriell verksamhet', code: 'IY2647', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Tillämpad konkurrens- och marknadsanalys', code: 'IY2648', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Datastrukturer och algoritmer', code: 'DV1682', hp: 6, year: 4, semester: 'VT' },
+    // År 5
+    { name: 'Avancerad forskningsmetod och design', code: 'IY2638', hp: 6, year: 5, semester: 'HT' },
+    { name: 'Tillämpad artificiell intelligens', code: 'DV2659', hp: 6, year: 5, semester: 'HT' },
+    { name: 'Produktivitet och teknikskiften', code: 'IY2639', hp: 6, year: 5, semester: 'HT' },
+    { name: 'Företagsvärdering och analys', code: 'IY2643', hp: 6, year: 5, semester: 'VT' },
+    { name: 'Finansiell modellering', code: 'IY2642', hp: 6, year: 5, semester: 'VT' },
+    { name: 'Masterarbete i industriell ekonomi och management', code: 'IY2651', hp: 30, year: 5, semester: 'VT' },
+  ],
+};

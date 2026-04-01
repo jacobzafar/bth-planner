@@ -1,0 +1,55 @@
+import { ProgramTemplate } from './types';
+
+export const civilingenjorMaskin: ProgramTemplate = {
+  name: 'Civilingenjör i maskinteknik - produktutveckling, 300 HP',
+  courses: [
+    // År 1
+    { name: 'Linjär algebra', code: 'MA1498', hp: 6, year: 1, semester: 'HT' },
+    { name: 'Teknisk introduktionskurs i maskinteknik', code: 'MT1567', hp: 6, year: 1, semester: 'HT' },
+    { name: 'Datorstöd för ingenjörsarbete 1', code: 'MT1549', hp: 8, year: 1, semester: 'HT' },
+    { name: 'Mekanik', code: 'FY1435', hp: 6, year: 1, semester: 'VT' },
+    { name: 'Programmering och problemlösning med Python', code: 'DV1574', hp: 6, year: 1, semester: 'VT' },
+    { name: 'Envariabelanalys 1: funktioner och differentialkalkyl', code: 'MA1499', hp: 6, year: 1, semester: 'VT' },
+    { name: 'MATLAB med tillämpningar inom matematik och teknik', code: 'ET1563', hp: 4, year: 1, semester: 'VT' },
+    { name: 'Envariabelanalys 2: differentialekvationer och integralkalkyl', code: 'MA1500', hp: 6, year: 1, semester: 'VT' },
+    { name: 'Tillverkningsteknik', code: 'MT1568', hp: 6, year: 1, semester: 'VT' },
+    { name: 'Hållfasthetslära, grundkurs', code: 'MT1565', hp: 6, year: 1, semester: 'VT' },
+    // År 2
+    { name: 'Mekanik: dynamik', code: 'MT1573', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Flervariabelanalys', code: 'MA1501', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Etik och hållbarhet för maskinteknik', code: 'SL1419', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Maskinelement', code: 'MT1571', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Innovativ och hållbar produktutveckling', code: 'MT1570', hp: 6, year: 2, semester: 'HT' },
+    { name: 'Maskinteknisk projektkurs 1 - konstruktion av mekatroniska system', code: 'MT1569', hp: 8, year: 2, semester: 'VT' },
+    { name: 'Vektoranalys', code: 'MA1503', hp: 4, year: 2, semester: 'VT' },
+    { name: 'Materiallära', code: 'MT1572', hp: 6, year: 2, semester: 'VT' },
+    { name: 'Termodynamik', code: 'FY1438', hp: 6, year: 2, semester: 'VT' },
+    { name: 'Ellära, grundkurs', code: 'ET1538', hp: 6, year: 2, semester: 'VT' },
+    // År 3
+    { name: 'Datorstöd för ingenjörsarbete 2', code: 'MT1564', hp: 6, year: 3, semester: 'HT' },
+    { name: 'Hållfasthetslära, fortsättningskurs med FEM', code: 'MT1566', hp: 6, year: 3, semester: 'HT' },
+    { name: 'Elektronik med tillämpningar inom mätteknik', code: 'ET1535', hp: 6, year: 3, semester: 'HT' },
+    { name: 'Matematisk statistik', code: 'MS1416', hp: 6, year: 3, semester: 'HT' },
+    { name: 'Vågfysik', code: 'FY1437', hp: 6, year: 3, semester: 'VT' },
+    { name: 'Kandidatarbete i teknik för maskinteknik', code: 'TE1433', hp: 18, year: 3, semester: 'VT' },
+    { name: 'Transformteori', code: 'MA1506', hp: 6, year: 3, semester: 'VT' },
+    { name: 'Reglerteknik, grundkurs', code: 'ET1561', hp: 6, year: 3, semester: 'VT' },
+    // År 4 (Digital produktutveckling)
+    { name: 'Innovationsteknik', code: 'MT2586', hp: 6, year: 4, semester: 'HT' },
+    { name: 'Modelldriven produktutveckling för produkt-tjänstesystem', code: 'MT2590', hp: 6, year: 4, semester: 'HT' },
+    { name: 'Produktutvecklingsprojekt 2A', code: 'MT2591', hp: 6, year: 4, semester: 'HT' },
+    { name: 'Värdedriven produktutveckling för cirkuläritet', code: 'MT2599', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Mekanikens approximativa beräkningsmetoder', code: 'MT2589', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Produktutvecklingsprojekt 2B', code: 'MT2592', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Datainsamling och analys', code: 'MT2582', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Tillämpad maskininlärning', code: 'MT1575', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Knowledge-Based Engineering', code: 'MT2587', hp: 6, year: 4, semester: 'VT' },
+    { name: 'Systems Engineering', code: 'MT2596', hp: 6, year: 4, semester: 'VT' },
+    // År 5
+    { name: 'Experimentell mekanik', code: 'MT2584', hp: 6, year: 5, semester: 'HT' },
+    { name: 'Forskningsmetodik för ingenjörer', code: 'MT2585', hp: 6, year: 5, semester: 'HT' },
+    { name: 'Produktutvecklingsprojekt 2C', code: 'MT2593', hp: 6, year: 5, semester: 'HT' },
+    { name: 'Digitala tvillingar', code: 'MT2583', hp: 6, year: 5, semester: 'HT' },
+    { name: 'Masterarbete i maskinteknik', code: 'MT2600', hp: 30, year: 5, semester: 'VT' },
+  ],
+};
