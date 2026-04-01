@@ -49,6 +49,8 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [addYear, setAddYear] = useState('1');
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
   const [newSubtaskText, setNewSubtaskText] = useState<Record<string, string>>({});
+  const [newSubtaskDate, setNewSubtaskDate] = useState<Record<string, string>>({});
+  const [newSubtaskHp, setNewSubtaskHp] = useState<Record<string, string>>({});
 
   const programTemplate = useMemo(() => {
     if (!programName) return null;
