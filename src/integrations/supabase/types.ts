@@ -19,6 +19,9 @@ export type Database = {
           completed: boolean
           course_id: string
           created_at: string
+          due_date: string | null
+          event_id: string | null
+          hp: number | null
           id: string
           title: string
           user_id: string
@@ -27,6 +30,9 @@ export type Database = {
           completed?: boolean
           course_id: string
           created_at?: string
+          due_date?: string | null
+          event_id?: string | null
+          hp?: number | null
           id?: string
           title: string
           user_id: string
@@ -35,6 +41,9 @@ export type Database = {
           completed?: boolean
           course_id?: string
           created_at?: string
+          due_date?: string | null
+          event_id?: string | null
+          hp?: number | null
           id?: string
           title?: string
           user_id?: string
@@ -45,6 +54,13 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "user_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_subtasks_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "study_events"
             referencedColumns: ["id"]
           },
         ]
