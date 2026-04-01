@@ -42,6 +42,7 @@ interface LinkedSubtask {
 export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [courses, setCourses] = useState<CourseData[]>([]);
+  const [subtasks, setSubtasks] = useState<LinkedSubtask[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,13 +50,15 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   }, [userId]);
 
   const fetchData = async () => {
-    const [eventsRes, coursesRes] = await Promise.all([
+    const [eventsRes, coursesRes, subtasksRes] = await Promise.all([
       supabase.from('study_events').select('*').eq('user_id', userId).order('due_date', { ascending: true }),
       supabase.from('user_courses').select('status, hp, year').eq('user_id', userId),
+      supabase.from('course_subtasks').select('id, event_id, hp, completed').eq('user_id', userId),
     ]);
 
     if (eventsRes.data) setEvents(eventsRes.data as StudyEvent[]);
     if (coursesRes.data) setCourses(coursesRes.data as CourseData[]);
+    if (subtasksRes.data) setSubtasks(subtasksRes.data as LinkedSubtask[]);
     setLoading(false);
   };
 
