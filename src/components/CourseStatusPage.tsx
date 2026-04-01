@@ -1,15 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
-import { GraduationCap, Save, Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { GraduationCap, Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
-import { ProgramCourse } from '@/lib/programs/types';
 
 interface CourseStatusPageProps {
   userId: string;
@@ -31,14 +32,42 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [courses, setCourses] = useState<UserCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addSearch, setAddSearch] = useState('');
+  const [addYear, setAddYear] = useState('1');
 
-  // Find the program template to get prerequisite info
   const programTemplate = useMemo(() => {
     if (!programName) return null;
     return bthPrograms.find(p => p.name === programName) || null;
   }, [programName]);
 
-  // Build prerequisite maps
+  // Build a master list of ALL courses across all programs (deduplicated by code)
+  const allBthCourses = useMemo(() => {
+    const map = new Map<string, { name: string; code: string; hp: number }>();
+    for (const program of bthPrograms) {
+      for (const course of program.courses) {
+        if (!map.has(course.code)) {
+          map.set(course.code, { name: course.name, code: course.code, hp: course.hp });
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, []);
+
+  // Courses not already in user's list
+  const availableCourses = useMemo(() => {
+    const userCodes = new Set(courses.map(c => c.course_code));
+    return allBthCourses.filter(c => !userCodes.has(c.code));
+  }, [allBthCourses, courses]);
+
+  const filteredAvailable = useMemo(() => {
+    if (!addSearch) return availableCourses.slice(0, 50);
+    const q = addSearch.toLowerCase();
+    return availableCourses.filter(c =>
+      c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
+    ).slice(0, 50);
+  }, [availableCourses, addSearch]);
+
   const prereqMap = useMemo(() => {
     if (!programTemplate) return new Map<string, string[]>();
     const map = new Map<string, string[]>();
@@ -50,7 +79,6 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     return map;
   }, [programTemplate]);
 
-  // Reverse map: which courses does this course block?
   const blocksMap = useMemo(() => {
     const map = new Map<string, string[]>();
     if (!programTemplate) return map;
@@ -65,7 +93,6 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     return map;
   }, [programTemplate]);
 
-  // Course name lookup
   const courseNameMap = useMemo(() => {
     const map = new Map<string, string>();
     if (programTemplate) {
@@ -76,8 +103,11 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     for (const c of courses) {
       map.set(c.course_code, c.course_name);
     }
+    for (const c of allBthCourses) {
+      if (!map.has(c.code)) map.set(c.code, c.name);
+    }
     return map;
-  }, [programTemplate, courses]);
+  }, [programTemplate, courses, allBthCourses]);
 
   useEffect(() => {
     fetchCourses();
@@ -123,7 +153,43 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     }
   };
 
-  // Check if prerequisites are met for a course
+  const handleDelete = async (courseId: string, courseName: string) => {
+    const { error } = await supabase
+      .from('user_courses')
+      .delete()
+      .eq('id', courseId);
+
+    if (error) {
+      toast.error('Kunde inte ta bort kursen');
+    } else {
+      setCourses(prev => prev.filter(c => c.id !== courseId));
+      toast.success(`${courseName} borttagen`);
+    }
+  };
+
+  const handleAddCourse = async (course: { code: string; name: string; hp: number }) => {
+    const year = parseInt(addYear);
+    const { data, error } = await supabase
+      .from('user_courses')
+      .insert({
+        user_id: userId,
+        course_code: course.code,
+        course_name: course.name,
+        hp: course.hp,
+        year,
+        status: 'not_started',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Kunde inte lägga till kursen');
+    } else if (data) {
+      setCourses(prev => [...prev, data as UserCourse]);
+      toast.success(`${course.name} tillagd i år ${year}`);
+    }
+  };
+
   const getPrereqStatus = (courseCode: string) => {
     const prereqs = prereqMap.get(courseCode);
     if (!prereqs || prereqs.length === 0) return null;
@@ -133,11 +199,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       return !course || course.status !== 'completed';
     });
 
-    return {
-      prereqs,
-      unmetPrereqs,
-      allMet: unmetPrereqs.length === 0,
-    };
+    return { prereqs, unmetPrereqs, allMet: unmetPrereqs.length === 0 };
   };
 
   const groupedByYear = courses.reduce((acc, c) => {
@@ -146,7 +208,6 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     return acc;
   }, {} as Record<number, UserCourse[]>);
 
-  // HP stats per year
   const yearHpStats = Object.entries(groupedByYear).map(([year, yearCourses]) => ({
     year: Number(year),
     completed: yearCourses.filter(c => c.status === 'completed').reduce((s, c) => s + c.hp, 0),
@@ -169,7 +230,85 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       </header>
 
       <main className="container max-w-2xl py-4 animate-slide-up">
-        <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Dina kurser</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-heading text-2xl font-bold text-foreground">Dina kurser</h2>
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1.5">
+                <Plus className="h-4 w-4" /> Lägg till kurs
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Lägg till kurs</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Sök kurskod eller kursnamn..."
+                    value={addSearch}
+                    onChange={e => setAddSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                  {addSearch && (
+                    <button onClick={() => setAddSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Lägg till i år:</span>
+                  <Select value={addYear} onValueChange={setAddYear}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5].map(y => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+                  {filteredAvailable.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      {addSearch ? 'Inga kurser hittades' : 'Alla kurser är redan tillagda'}
+                    </p>
+                  ) : (
+                    filteredAvailable.map(course => (
+                      <div
+                        key={course.code}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-semibold text-foreground">{course.code}</span>
+                            <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{course.name}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAddCourse(course)}
+                          className="shrink-0 gap-1"
+                        >
+                          <Plus className="h-3 w-3" /> Lägg till
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                  {filteredAvailable.length >= 50 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      Visar max 50 resultat. Använd sökning för att hitta fler.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
         <p className="text-muted-foreground mb-6">
           Markera status för varje kurs. Förkunskapskrav och spärrar visas under varje kurs.
         </p>
@@ -184,9 +323,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               return (
                 <div key={year} className="mb-6">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-heading font-semibold text-foreground">
-                      År {year}
-                    </h3>
+                    <h3 className="font-heading font-semibold text-foreground">År {year}</h3>
                     <span className="text-xs text-muted-foreground">
                       {stats?.completed}/{stats?.total} HP ({yearProgress}%)
                     </span>
@@ -202,7 +339,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                         <Card key={course.id} className={prereqStatus && !prereqStatus.allMet && course.status === 'not_started' ? 'border-warning/30' : ''}>
                           <CardContent className="p-4">
                             <div className="flex items-center gap-3 flex-wrap">
-                              <div className="flex-1 min-w-[200px]">
+                              <div className="flex-1 min-w-[180px]">
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
                                   <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
@@ -219,19 +356,34 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                                 </div>
                                 <p className="text-sm text-muted-foreground">{course.course_name}</p>
                               </div>
-                              <Select
-                                value={course.status}
-                                onValueChange={(v) => updateStatus(course.id, v as CourseStatus)}
-                              >
-                                <SelectTrigger className="w-[200px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="completed">✅ Helt avklarad</SelectItem>
-                                  <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
-                                  <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={course.status}
+                                  onValueChange={(v) => updateStatus(course.id, v as CourseStatus)}
+                                >
+                                  <SelectTrigger className="w-[180px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="completed">✅ Helt avklarad</SelectItem>
+                                    <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
+                                    <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                                      onClick={() => handleDelete(course.id, course.course_name)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Ta bort kurs</TooltipContent>
+                                </Tooltip>
+                              </div>
                             </div>
 
                             {hasPrereqInfo && (
@@ -247,8 +399,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                                           <span key={code}>
                                             {i > 0 && ', '}
                                             <span className={met ? 'text-success' : 'text-warning font-medium'}>
-                                              {code}
-                                              {courseNameMap.get(code) ? ` (${courseNameMap.get(code)})` : ''}
+                                              {code}{courseNameMap.get(code) ? ` (${courseNameMap.get(code)})` : ''}
                                             </span>
                                           </span>
                                         );
