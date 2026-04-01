@@ -4,6 +4,8 @@ export interface ProgramCourse {
   hp: number;
   year: number;
   semester: 'HT' | 'VT';
+  /** Course codes that are prerequisites for this course */
+  prerequisites?: string[];
 }
 
 export interface ProgramTemplate {

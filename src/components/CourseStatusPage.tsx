@@ -1,14 +1,19 @@
-import { useState, useEffect } from 'react';
-import { GraduationCap, Save } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { GraduationCap, Save, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { bthPrograms } from '@/lib/programs';
+import { ProgramCourse } from '@/lib/programs/types';
 
 interface CourseStatusPageProps {
   userId: string;
+  programName?: string;
 }
 
 type CourseStatus = 'completed' | 'partly' | 'not_started';
@@ -22,10 +27,57 @@ interface UserCourse {
   status: CourseStatus;
 }
 
-export default function CourseStatusPage({ userId }: CourseStatusPageProps) {
+export default function CourseStatusPage({ userId, programName }: CourseStatusPageProps) {
   const [courses, setCourses] = useState<UserCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Find the program template to get prerequisite info
+  const programTemplate = useMemo(() => {
+    if (!programName) return null;
+    return bthPrograms.find(p => p.name === programName) || null;
+  }, [programName]);
+
+  // Build prerequisite maps
+  const prereqMap = useMemo(() => {
+    if (!programTemplate) return new Map<string, string[]>();
+    const map = new Map<string, string[]>();
+    for (const course of programTemplate.courses) {
+      if (course.prerequisites && course.prerequisites.length > 0) {
+        map.set(course.code, course.prerequisites);
+      }
+    }
+    return map;
+  }, [programTemplate]);
+
+  // Reverse map: which courses does this course block?
+  const blocksMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!programTemplate) return map;
+    for (const course of programTemplate.courses) {
+      if (course.prerequisites) {
+        for (const prereq of course.prerequisites) {
+          if (!map.has(prereq)) map.set(prereq, []);
+          map.get(prereq)!.push(course.code);
+        }
+      }
+    }
+    return map;
+  }, [programTemplate]);
+
+  // Course name lookup
+  const courseNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (programTemplate) {
+      for (const c of programTemplate.courses) {
+        map.set(c.code, c.name);
+      }
+    }
+    for (const c of courses) {
+      map.set(c.course_code, c.course_name);
+    }
+    return map;
+  }, [programTemplate, courses]);
 
   useEffect(() => {
     fetchCourses();
@@ -71,16 +123,21 @@ export default function CourseStatusPage({ userId }: CourseStatusPageProps) {
     }
   };
 
-  const statusLabel: Record<CourseStatus, string> = {
-    completed: '✅ Helt avklarad',
-    partly: '🟡 Delvis avklarad',
-    not_started: '⬜ Ej påbörjad',
-  };
+  // Check if prerequisites are met for a course
+  const getPrereqStatus = (courseCode: string) => {
+    const prereqs = prereqMap.get(courseCode);
+    if (!prereqs || prereqs.length === 0) return null;
 
-  const statusColor: Record<CourseStatus, string> = {
-    completed: 'bg-success/10 text-success',
-    partly: 'bg-warning/10 text-warning',
-    not_started: 'bg-muted text-muted-foreground',
+    const unmetPrereqs = prereqs.filter(prereqCode => {
+      const course = courses.find(c => c.course_code === prereqCode);
+      return !course || course.status !== 'completed';
+    });
+
+    return {
+      prereqs,
+      unmetPrereqs,
+      allMet: unmetPrereqs.length === 0,
+    };
   };
 
   const groupedByYear = courses.reduce((acc, c) => {
@@ -88,6 +145,13 @@ export default function CourseStatusPage({ userId }: CourseStatusPageProps) {
     acc[c.year].push(c);
     return acc;
   }, {} as Record<number, UserCourse[]>);
+
+  // HP stats per year
+  const yearHpStats = Object.entries(groupedByYear).map(([year, yearCourses]) => ({
+    year: Number(year),
+    completed: yearCourses.filter(c => c.status === 'completed').reduce((s, c) => s + c.hp, 0),
+    total: yearCourses.reduce((s, c) => s + c.hp, 0),
+  }));
 
   if (loading) {
     return (
@@ -107,46 +171,116 @@ export default function CourseStatusPage({ userId }: CourseStatusPageProps) {
       <main className="container max-w-2xl py-4 animate-slide-up">
         <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Dina kurser</h2>
         <p className="text-muted-foreground mb-6">
-          Markera status för varje kurs du har läst hittills.
+          Markera status för varje kurs. Förkunskapskrav och spärrar visas under varje kurs.
         </p>
 
-        {Object.entries(groupedByYear)
-          .sort(([a], [b]) => Number(a) - Number(b))
-          .map(([year, yearCourses]) => (
-            <div key={year} className="mb-6">
-              <h3 className="font-heading font-semibold text-foreground mb-3">
-                År {year}
-              </h3>
-              <div className="space-y-2">
-                {yearCourses.map(course => (
-                  <Card key={course.id}>
-                    <CardContent className="p-4 flex items-center gap-3 flex-wrap">
-                      <div className="flex-1 min-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
-                          <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{course.course_name}</p>
-                      </div>
-                      <Select
-                        value={course.status}
-                        onValueChange={(v) => updateStatus(course.id, v as CourseStatus)}
-                      >
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="completed">✅ Helt avklarad</SelectItem>
-                          <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
-                          <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ))}
+        <TooltipProvider>
+          {Object.entries(groupedByYear)
+            .sort(([a], [b]) => Number(a) - Number(b))
+            .map(([year, yearCourses]) => {
+              const stats = yearHpStats.find(s => s.year === Number(year));
+              const yearProgress = stats ? (stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0) : 0;
+
+              return (
+                <div key={year} className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-heading font-semibold text-foreground">
+                      År {year}
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      {stats?.completed}/{stats?.total} HP ({yearProgress}%)
+                    </span>
+                  </div>
+                  <Progress value={yearProgress} className="h-1.5 mb-3" />
+                  <div className="space-y-2">
+                    {yearCourses.map(course => {
+                      const prereqStatus = getPrereqStatus(course.course_code);
+                      const blocks = blocksMap.get(course.course_code);
+                      const hasPrereqInfo = prereqStatus || (blocks && blocks.length > 0);
+
+                      return (
+                        <Card key={course.id} className={prereqStatus && !prereqStatus.allMet && course.status === 'not_started' ? 'border-warning/30' : ''}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className="flex-1 min-w-[200px]">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
+                                  <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
+                                  {prereqStatus && !prereqStatus.allMet && course.status === 'not_started' && (
+                                    <Tooltip>
+                                      <TooltipTrigger>
+                                        <AlertCircle className="h-4 w-4 text-warning" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Förkunskapskrav ej uppfyllda</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{course.course_name}</p>
+                              </div>
+                              <Select
+                                value={course.status}
+                                onValueChange={(v) => updateStatus(course.id, v as CourseStatus)}
+                              >
+                                <SelectTrigger className="w-[200px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="completed">✅ Helt avklarad</SelectItem>
+                                  <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
+                                  <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {hasPrereqInfo && (
+                              <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                                {prereqStatus && prereqStatus.prereqs.length > 0 && (
+                                  <div className="flex items-start gap-1.5 text-xs">
+                                    <Lock className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                    <span className="text-muted-foreground">
+                                      Förkunskapskrav:{' '}
+                                      {prereqStatus.prereqs.map((code, i) => {
+                                        const met = !prereqStatus.unmetPrereqs.includes(code);
+                                        return (
+                                          <span key={code}>
+                                            {i > 0 && ', '}
+                                            <span className={met ? 'text-success' : 'text-warning font-medium'}>
+                                              {code}
+                                              {courseNameMap.get(code) ? ` (${courseNameMap.get(code)})` : ''}
+                                            </span>
+                                          </span>
+                                        );
+                                      })}
+                                    </span>
+                                  </div>
+                                )}
+                                {blocks && blocks.length > 0 && (
+                                  <div className="flex items-start gap-1.5 text-xs">
+                                    <ArrowRight className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                    <span className="text-muted-foreground">
+                                      Spärrar:{' '}
+                                      {blocks.map((code, i) => (
+                                        <span key={code}>
+                                          {i > 0 && ', '}
+                                          <span>{code}{courseNameMap.get(code) ? ` (${courseNameMap.get(code)})` : ''}</span>
+                                        </span>
+                                      ))}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+        </TooltipProvider>
 
         <Button
           size="lg"
