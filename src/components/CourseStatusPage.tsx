@@ -125,7 +125,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     const [coursesRes, subtasksRes] = await Promise.all([
       supabase.from('user_courses').select('*').eq('user_id', userId)
         .order('year', { ascending: true }).order('course_name', { ascending: true }),
-      supabase.from('course_subtasks').select('id, course_id, title, completed').eq('user_id', userId)
+      supabase.from('course_subtasks').select('id, course_id, title, completed, due_date, hp, event_id').eq('user_id', userId)
         .order('created_at', { ascending: true }),
     ]);
 
