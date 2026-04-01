@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle2, Clock, Plus, Target, CalendarDays, BookOpen } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { AlertTriangle, CheckCircle2, Clock, Plus, Target, CalendarDays, BookOpen, TrendingUp } from 'lucide-react';
 import { format, differenceInHours, isToday, isTomorrow } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
@@ -11,6 +12,7 @@ import { toast } from 'sonner';
 
 interface DashboardProps {
   userId: string;
+  totalProgramHp?: number;
 }
 
 interface StudyEvent {
@@ -24,15 +26,15 @@ interface StudyEvent {
   status: string;
 }
 
-interface CourseStats {
-  total: number;
-  completed: number;
-  partly: number;
+interface CourseData {
+  status: string;
+  hp: number;
+  year: number;
 }
 
-export default function Dashboard({ userId }: DashboardProps) {
+export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
-  const [courseStats, setCourseStats] = useState<CourseStats>({ total: 0, completed: 0, partly: 0 });
+  const [courses, setCourses] = useState<CourseData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,20 +44,35 @@ export default function Dashboard({ userId }: DashboardProps) {
   const fetchData = async () => {
     const [eventsRes, coursesRes] = await Promise.all([
       supabase.from('study_events').select('*').eq('user_id', userId).order('due_date', { ascending: true }),
-      supabase.from('user_courses').select('status').eq('user_id', userId),
+      supabase.from('user_courses').select('status, hp, year').eq('user_id', userId),
     ]);
 
     if (eventsRes.data) setEvents(eventsRes.data as StudyEvent[]);
-    if (coursesRes.data) {
-      const courses = coursesRes.data;
-      setCourseStats({
-        total: courses.length,
-        completed: courses.filter(c => c.status === 'completed').length,
-        partly: courses.filter(c => c.status === 'partly').length,
-      });
-    }
+    if (coursesRes.data) setCourses(coursesRes.data as CourseData[]);
     setLoading(false);
   };
+
+  const completedHp = courses.filter(c => c.status === 'completed').reduce((sum, c) => sum + c.hp, 0);
+  const partlyHp = courses.filter(c => c.status === 'partly').reduce((sum, c) => sum + c.hp, 0);
+  const totalHp = totalProgramHp || courses.reduce((sum, c) => sum + c.hp, 0);
+  const progressPercent = totalHp > 0 ? Math.round((completedHp / totalHp) * 100) : 0;
+
+  const courseStats = {
+    total: courses.length,
+    completed: courses.filter(c => c.status === 'completed').length,
+    partly: courses.filter(c => c.status === 'partly').length,
+  };
+
+  // Group HP by year
+  const years = [...new Set(courses.map(c => c.year))].sort();
+  const hpByYear = years.map(year => {
+    const yearCourses = courses.filter(c => c.year === year);
+    return {
+      year,
+      completed: yearCourses.filter(c => c.status === 'completed').reduce((s, c) => s + c.hp, 0),
+      total: yearCourses.reduce((s, c) => s + c.hp, 0),
+    };
+  });
 
   const now = new Date();
   const upcomingEvents = events.filter(e => e.status !== 'complete' && new Date(e.due_date) >= now);
@@ -109,6 +126,40 @@ export default function Dashboard({ userId }: DashboardProps) {
 
   return (
     <div className="space-y-6 md:mt-12 animate-slide-up">
+      {/* HP Progress */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 font-heading">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            Studieframsteg
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <span className="text-3xl font-heading font-bold text-foreground">{completedHp} <span className="text-lg text-muted-foreground font-normal">/ {totalHp} HP</span></span>
+              <span className="text-sm font-semibold text-primary">{progressPercent}%</span>
+            </div>
+            <Progress value={progressPercent} className="h-3" />
+            {partlyHp > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">+ {partlyHp} HP delvis avklarade</p>
+            )}
+          </div>
+
+          {hpByYear.length > 1 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {hpByYear.map(({ year, completed, total }) => (
+                <div key={year} className="text-center p-2 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground mb-1">År {year}</p>
+                  <p className="font-heading font-bold text-sm text-foreground">{completed}/{total}</p>
+                  <Progress value={total > 0 ? (completed / total) * 100 : 0} className="h-1.5 mt-1" />
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Snabbstatistik */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
