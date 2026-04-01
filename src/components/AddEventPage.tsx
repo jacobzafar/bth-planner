@@ -32,7 +32,8 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.from('user_courses').select('id, course_code, course_name').eq('user_id', userId)
+    supabase.from('user_courses').select('id, course_code, course_name, status').eq('user_id', userId)
+      .in('status', ['partly', 'not_started'])
       .then(({ data }) => setCourses((data || []) as UserCourse[]));
   }, [userId]);
 
