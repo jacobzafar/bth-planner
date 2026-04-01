@@ -8,6 +8,11 @@ export { civilingenjorMjukvaru } from './programs/civilingenjor-mjukvaru';
 export { civilingenjorSpelteknik } from './programs/civilingenjor-spelteknik';
 export { datavetenskapSpel120, datavetenskapSpel180 } from './programs/datavetenskap-spel';
 export { hogskoleingenjorIT } from './programs/hogskoleingenjor-it';
+export { hogskoleingenjorMarin } from './programs/hogskoleingenjor-marin';
+export { hogskoleingenjorMaskin } from './programs/hogskoleingenjor-maskin';
+export { hogskoleingenjorSpelgrafik } from './programs/hogskoleingenjor-spelgrafik';
+export { magisterSoftwareEng, magisterHallbarhet } from './programs/magister';
+export { masterAI, masterBA, masterDatavetenskap, masterStadsplanering, masterInnovation } from './programs/master';
 
 import { ProgramTemplate } from './programs/types';
 import { civilingenjorIndustriell } from './programs/civilingenjor-industriell';
@@ -19,6 +24,11 @@ import { civilingenjorMjukvaru } from './programs/civilingenjor-mjukvaru';
 import { civilingenjorSpelteknik } from './programs/civilingenjor-spelteknik';
 import { datavetenskapSpel120, datavetenskapSpel180 } from './programs/datavetenskap-spel';
 import { hogskoleingenjorIT } from './programs/hogskoleingenjor-it';
+import { hogskoleingenjorMarin } from './programs/hogskoleingenjor-marin';
+import { hogskoleingenjorMaskin } from './programs/hogskoleingenjor-maskin';
+import { hogskoleingenjorSpelgrafik } from './programs/hogskoleingenjor-spelgrafik';
+import { magisterSoftwareEng, magisterHallbarhet } from './programs/magister';
+import { masterAI, masterBA, masterDatavetenskap, masterStadsplanering, masterInnovation } from './programs/master';
 
 export const bthPrograms: ProgramTemplate[] = [
   civilingenjorIndustriell,
@@ -31,4 +41,14 @@ export const bthPrograms: ProgramTemplate[] = [
   datavetenskapSpel120,
   datavetenskapSpel180,
   hogskoleingenjorIT,
+  hogskoleingenjorMarin,
+  hogskoleingenjorMaskin,
+  hogskoleingenjorSpelgrafik,
+  magisterSoftwareEng,
+  magisterHallbarhet,
+  masterAI,
+  masterBA,
+  masterDatavetenskap,
+  masterStadsplanering,
+  masterInnovation,
 ];
