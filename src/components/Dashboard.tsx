@@ -32,6 +32,13 @@ interface CourseData {
   year: number;
 }
 
+interface LinkedSubtask {
+  id: string;
+  event_id: string | null;
+  hp: number;
+  completed: boolean;
+}
+
 export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [courses, setCourses] = useState<CourseData[]>([]);
