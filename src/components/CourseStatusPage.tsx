@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { GraduationCap, Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X } from 'lucide-react';
+import { GraduationCap, Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
@@ -28,20 +29,29 @@ interface UserCourse {
   status: CourseStatus;
 }
 
+interface Subtask {
+  id: string;
+  course_id: string;
+  title: string;
+  completed: boolean;
+}
+
 export default function CourseStatusPage({ userId, programName }: CourseStatusPageProps) {
   const [courses, setCourses] = useState<UserCourse[]>([]);
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addSearch, setAddSearch] = useState('');
   const [addYear, setAddYear] = useState('1');
+  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
+  const [newSubtaskText, setNewSubtaskText] = useState<Record<string, string>>({});
 
   const programTemplate = useMemo(() => {
     if (!programName) return null;
     return bthPrograms.find(p => p.name === programName) || null;
   }, [programName]);
 
-  // Build a master list of ALL courses across all programs (deduplicated by code)
   const allBthCourses = useMemo(() => {
     const map = new Map<string, { name: string; code: string; hp: number }>();
     for (const program of bthPrograms) {
@@ -54,7 +64,6 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
   }, []);
 
-  // Courses not already in user's list
   const availableCourses = useMemo(() => {
     const userCodes = new Set(courses.map(c => c.course_code));
     return allBthCourses.filter(c => !userCodes.has(c.code));
@@ -96,53 +105,47 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const courseNameMap = useMemo(() => {
     const map = new Map<string, string>();
     if (programTemplate) {
-      for (const c of programTemplate.courses) {
-        map.set(c.code, c.name);
-      }
+      for (const c of programTemplate.courses) map.set(c.code, c.name);
     }
-    for (const c of courses) {
-      map.set(c.course_code, c.course_name);
-    }
-    for (const c of allBthCourses) {
-      if (!map.has(c.code)) map.set(c.code, c.name);
-    }
+    for (const c of courses) map.set(c.course_code, c.course_name);
+    for (const c of allBthCourses) { if (!map.has(c.code)) map.set(c.code, c.name); }
     return map;
   }, [programTemplate, courses, allBthCourses]);
 
   useEffect(() => {
-    fetchCourses();
+    fetchData();
   }, [userId]);
 
-  const fetchCourses = async () => {
-    const { data, error } = await supabase
-      .from('user_courses')
-      .select('*')
-      .eq('user_id', userId)
-      .order('year', { ascending: true })
-      .order('course_name', { ascending: true });
+  const fetchData = async () => {
+    const [coursesRes, subtasksRes] = await Promise.all([
+      supabase.from('user_courses').select('*').eq('user_id', userId)
+        .order('year', { ascending: true }).order('course_name', { ascending: true }),
+      supabase.from('course_subtasks').select('id, course_id, title, completed').eq('user_id', userId)
+        .order('created_at', { ascending: true }),
+    ]);
 
-    if (error) {
-      toast.error('Kunde inte hämta kurser');
-    } else {
-      setCourses((data || []) as UserCourse[]);
-    }
+    if (coursesRes.data) setCourses(coursesRes.data as UserCourse[]);
+    if (subtasksRes.data) setSubtasks(subtasksRes.data as Subtask[]);
     setLoading(false);
   };
 
   const updateStatus = (courseId: string, newStatus: CourseStatus) => {
-    setCourses(prev =>
-      prev.map(c => c.id === courseId ? { ...c, status: newStatus } : c)
-    );
+    setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: newStatus } : c));
+  };
+
+  const toggleExpanded = (courseId: string) => {
+    setExpandedCourses(prev => {
+      const next = new Set(prev);
+      if (next.has(courseId)) next.delete(courseId); else next.add(courseId);
+      return next;
+    });
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
       for (const course of courses) {
-        const { error } = await supabase
-          .from('user_courses')
-          .update({ status: course.status })
-          .eq('id', course.id);
+        const { error } = await supabase.from('user_courses').update({ status: course.status }).eq('id', course.id);
         if (error) throw error;
       }
       toast.success('Kursstatus sparad!');
@@ -154,33 +157,22 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   };
 
   const handleDelete = async (courseId: string, courseName: string) => {
-    const { error } = await supabase
-      .from('user_courses')
-      .delete()
-      .eq('id', courseId);
-
+    const { error } = await supabase.from('user_courses').delete().eq('id', courseId);
     if (error) {
       toast.error('Kunde inte ta bort kursen');
     } else {
       setCourses(prev => prev.filter(c => c.id !== courseId));
+      setSubtasks(prev => prev.filter(s => s.course_id !== courseId));
       toast.success(`${courseName} borttagen`);
     }
   };
 
   const handleAddCourse = async (course: { code: string; name: string; hp: number }) => {
     const year = parseInt(addYear);
-    const { data, error } = await supabase
-      .from('user_courses')
-      .insert({
-        user_id: userId,
-        course_code: course.code,
-        course_name: course.name,
-        hp: course.hp,
-        year,
-        status: 'not_started',
-      })
-      .select()
-      .single();
+    const { data, error } = await supabase.from('user_courses').insert({
+      user_id: userId, course_code: course.code, course_name: course.name,
+      hp: course.hp, year, status: 'not_started',
+    }).select().single();
 
     if (error) {
       toast.error('Kunde inte lägga till kursen');
@@ -190,15 +182,46 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     }
   };
 
+  const handleAddSubtask = async (courseId: string) => {
+    const text = (newSubtaskText[courseId] || '').trim();
+    if (!text) return;
+
+    const { data, error } = await supabase.from('course_subtasks').insert({
+      user_id: userId, course_id: courseId, title: text,
+    }).select('id, course_id, title, completed').single();
+
+    if (error) {
+      toast.error('Kunde inte lägga till delmoment');
+    } else if (data) {
+      setSubtasks(prev => [...prev, data as Subtask]);
+      setNewSubtaskText(prev => ({ ...prev, [courseId]: '' }));
+    }
+  };
+
+  const toggleSubtask = async (subtask: Subtask) => {
+    const newCompleted = !subtask.completed;
+    const { error } = await supabase.from('course_subtasks')
+      .update({ completed: newCompleted }).eq('id', subtask.id);
+
+    if (!error) {
+      setSubtasks(prev => prev.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s));
+    }
+  };
+
+  const deleteSubtask = async (id: string) => {
+    const { error } = await supabase.from('course_subtasks').delete().eq('id', id);
+    if (!error) {
+      setSubtasks(prev => prev.filter(s => s.id !== id));
+    }
+  };
+
   const getPrereqStatus = (courseCode: string) => {
     const prereqs = prereqMap.get(courseCode);
     if (!prereqs || prereqs.length === 0) return null;
-
     const unmetPrereqs = prereqs.filter(prereqCode => {
       const course = courses.find(c => c.course_code === prereqCode);
       return !course || course.status !== 'completed';
     });
-
     return { prereqs, unmetPrereqs, allMet: unmetPrereqs.length === 0 };
   };
 
@@ -245,12 +268,8 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Sök kurskod eller kursnamn..."
-                    value={addSearch}
-                    onChange={e => setAddSearch(e.target.value)}
-                    className="pl-10"
-                  />
+                  <Input placeholder="Sök kurskod eller kursnamn..." value={addSearch}
+                    onChange={e => setAddSearch(e.target.value)} className="pl-10" />
                   {addSearch && (
                     <button onClick={() => setAddSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                       <X className="h-4 w-4" />
@@ -260,9 +279,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Lägg till i år:</span>
                   <Select value={addYear} onValueChange={setAddYear}>
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {[1, 2, 3, 4, 5].map(y => (
                         <SelectItem key={y} value={String(y)}>{y}</SelectItem>
@@ -277,10 +294,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                     </p>
                   ) : (
                     filteredAvailable.map(course => (
-                      <div
-                        key={course.code}
-                        className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                      >
+                      <div key={course.code} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-sm font-semibold text-foreground">{course.code}</span>
@@ -288,21 +302,14 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                           </div>
                           <p className="text-sm text-muted-foreground truncate">{course.name}</p>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAddCourse(course)}
-                          className="shrink-0 gap-1"
-                        >
+                        <Button size="sm" variant="outline" onClick={() => handleAddCourse(course)} className="shrink-0 gap-1">
                           <Plus className="h-3 w-3" /> Lägg till
                         </Button>
                       </div>
                     ))
                   )}
                   {filteredAvailable.length >= 50 && (
-                    <p className="text-xs text-muted-foreground text-center py-2">
-                      Visar max 50 resultat. Använd sökning för att hitta fler.
-                    </p>
+                    <p className="text-xs text-muted-foreground text-center py-2">Visar max 50 resultat. Använd sökning för att hitta fler.</p>
                   )}
                 </div>
               </div>
@@ -310,7 +317,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
           </Dialog>
         </div>
         <p className="text-muted-foreground mb-6">
-          Markera status för varje kurs. Förkunskapskrav och spärrar visas under varje kurs.
+          Markera status och hantera delmoment för varje kurs.
         </p>
 
         <TooltipProvider>
@@ -324,9 +331,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                 <div key={year} className="mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-heading font-semibold text-foreground">År {year}</h3>
-                    <span className="text-xs text-muted-foreground">
-                      {stats?.completed}/{stats?.total} HP ({yearProgress}%)
-                    </span>
+                    <span className="text-xs text-muted-foreground">{stats?.completed}/{stats?.total} HP ({yearProgress}%)</span>
                   </div>
                   <Progress value={yearProgress} className="h-1.5 mb-3" />
                   <div className="space-y-2">
@@ -334,6 +339,9 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                       const prereqStatus = getPrereqStatus(course.course_code);
                       const blocks = blocksMap.get(course.course_code);
                       const hasPrereqInfo = prereqStatus || (blocks && blocks.length > 0);
+                      const courseSubtasks = subtasks.filter(s => s.course_id === course.id);
+                      const completedSubs = courseSubtasks.filter(s => s.completed).length;
+                      const isExpanded = expandedCourses.has(course.id);
 
                       return (
                         <Card key={course.id} className={prereqStatus && !prereqStatus.allMet && course.status === 'not_started' ? 'border-warning/30' : ''}>
@@ -343,27 +351,23 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                                 <div className="flex items-center gap-2">
                                   <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
                                   <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
+                                  {courseSubtasks.length > 0 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {completedSubs}/{courseSubtasks.length} delmoment
+                                    </Badge>
+                                  )}
                                   {prereqStatus && !prereqStatus.allMet && course.status === 'not_started' && (
                                     <Tooltip>
-                                      <TooltipTrigger>
-                                        <AlertCircle className="h-4 w-4 text-warning" />
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Förkunskapskrav ej uppfyllda</p>
-                                      </TooltipContent>
+                                      <TooltipTrigger><AlertCircle className="h-4 w-4 text-warning" /></TooltipTrigger>
+                                      <TooltipContent><p>Förkunskapskrav ej uppfyllda</p></TooltipContent>
                                     </Tooltip>
                                   )}
                                 </div>
                                 <p className="text-sm text-muted-foreground">{course.course_name}</p>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Select
-                                  value={course.status}
-                                  onValueChange={(v) => updateStatus(course.id, v as CourseStatus)}
-                                >
-                                  <SelectTrigger className="w-[180px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
+                                <Select value={course.status} onValueChange={(v) => updateStatus(course.id, v as CourseStatus)}>
+                                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="completed">✅ Helt avklarad</SelectItem>
                                     <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
@@ -372,12 +376,8 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                                 </Select>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                                      onClick={() => handleDelete(course.id, course.course_name)}
-                                    >
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                                      onClick={() => handleDelete(course.id, course.course_name)}>
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
@@ -413,16 +413,58 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                                     <span className="text-muted-foreground">
                                       Spärrar:{' '}
                                       {blocks.map((code, i) => (
-                                        <span key={code}>
-                                          {i > 0 && ', '}
-                                          <span>{code}{courseNameMap.get(code) ? ` (${courseNameMap.get(code)})` : ''}</span>
-                                        </span>
+                                        <span key={code}>{i > 0 && ', '}{code}{courseNameMap.get(code) ? ` (${courseNameMap.get(code)})` : ''}</span>
                                       ))}
                                     </span>
                                   </div>
                                 )}
                               </div>
                             )}
+
+                            {/* Subtasks section */}
+                            <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(course.id)}>
+                              <CollapsibleTrigger asChild>
+                                <button className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50 w-full text-xs text-muted-foreground hover:text-foreground transition-colors">
+                                  {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  Delmoment ({courseSubtasks.length})
+                                </button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="mt-2 space-y-1.5">
+                                {courseSubtasks.map(sub => (
+                                  <div key={sub.id} className="flex items-center gap-2 group">
+                                    <button onClick={() => toggleSubtask(sub)} className="shrink-0">
+                                      {sub.completed ? (
+                                        <Check className="h-4 w-4 text-success" />
+                                      ) : (
+                                        <Square className="h-4 w-4 text-muted-foreground" />
+                                      )}
+                                    </button>
+                                    <span className={`text-sm flex-1 ${sub.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                                      {sub.title}
+                                    </span>
+                                    <button
+                                      onClick={() => deleteSubtask(sub.id)}
+                                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    placeholder="Lägg till delmoment..."
+                                    value={newSubtaskText[course.id] || ''}
+                                    onChange={e => setNewSubtaskText(prev => ({ ...prev, [course.id]: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(course.id); } }}
+                                    className="h-8 text-sm"
+                                  />
+                                  <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0"
+                                    onClick={() => handleAddSubtask(course.id)} disabled={!(newSubtaskText[course.id] || '').trim()}>
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
                           </CardContent>
                         </Card>
                       );
@@ -433,12 +475,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
             })}
         </TooltipProvider>
 
-        <Button
-          size="lg"
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full gap-2 text-base mt-4"
-        >
+        <Button size="lg" onClick={handleSave} disabled={saving} className="w-full gap-2 text-base mt-4">
           <Save className="h-4 w-4" /> {saving ? 'Sparar...' : 'Spara kursstatus'}
         </Button>
       </main>
