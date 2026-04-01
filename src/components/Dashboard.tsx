@@ -102,6 +102,11 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     if (error) {
       toast.error('Kunde inte uppdatera');
     } else {
+      // Also mark linked subtask as complete
+      const linkedSubtask = subtasks.find(s => s.event_id === id);
+      if (linkedSubtask) {
+        await supabase.from('course_subtasks').update({ completed: true }).eq('id', linkedSubtask.id);
+      }
       toast.success('Markerad som klar!');
       fetchData();
     }
