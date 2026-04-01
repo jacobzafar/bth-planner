@@ -32,9 +32,17 @@ interface CourseData {
   year: number;
 }
 
+interface LinkedSubtask {
+  id: string;
+  event_id: string | null;
+  hp: number;
+  completed: boolean;
+}
+
 export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [courses, setCourses] = useState<CourseData[]>([]);
+  const [subtasks, setSubtasks] = useState<LinkedSubtask[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,13 +50,15 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   }, [userId]);
 
   const fetchData = async () => {
-    const [eventsRes, coursesRes] = await Promise.all([
+    const [eventsRes, coursesRes, subtasksRes] = await Promise.all([
       supabase.from('study_events').select('*').eq('user_id', userId).order('due_date', { ascending: true }),
       supabase.from('user_courses').select('status, hp, year').eq('user_id', userId),
+      supabase.from('course_subtasks').select('id, event_id, hp, completed').eq('user_id', userId),
     ]);
 
     if (eventsRes.data) setEvents(eventsRes.data as StudyEvent[]);
     if (coursesRes.data) setCourses(coursesRes.data as CourseData[]);
+    if (subtasksRes.data) setSubtasks(subtasksRes.data as LinkedSubtask[]);
     setLoading(false);
   };
 
@@ -92,6 +102,11 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     if (error) {
       toast.error('Kunde inte uppdatera');
     } else {
+      // Also mark linked subtask as complete
+      const linkedSubtask = subtasks.find(s => s.event_id === id);
+      if (linkedSubtask) {
+        await supabase.from('course_subtasks').update({ completed: true }).eq('id', linkedSubtask.id);
+      }
       toast.success('Markerad som klar!');
       fetchData();
     }
@@ -237,6 +252,12 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
                       <Badge className={`${typeColor[event.event_type] || 'bg-muted text-muted-foreground'} text-xs`}>
                         {typeLabel[event.event_type] || event.event_type}
                       </Badge>
+                      {(() => {
+                        const linked = subtasks.find(s => s.event_id === event.id);
+                        return linked && linked.hp > 0 ? (
+                          <Badge variant="outline" className="text-xs">{linked.hp} HP</Badge>
+                        ) : null;
+                      })()}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>📅 {formatDueLabel(event.due_date, event.due_time)}</span>
