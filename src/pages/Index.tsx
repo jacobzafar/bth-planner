@@ -85,15 +85,20 @@ export default function Index() {
     );
   }
 
+  // Compute total HP from program template
+  const programTemplate = bthPrograms.find(p => p.name === profileData?.program_name);
+  const totalProgramHp = programTemplate ? programTemplate.courses.reduce((s, c) => s + c.hp, 0) : undefined;
+  const pName = profileData?.program_name || '';
+
   // Main app
   return (
-    <AppLayout programName={profileData?.program_name || ''} onLogout={handleLogout}>
+    <AppLayout programName={pName} onLogout={handleLogout}>
       <Routes>
-        <Route path="/" element={<Dashboard userId={session.user.id} />} />
-        <Route path="/kurser" element={<CourseStatusPage userId={session.user.id} />} />
+        <Route path="/" element={<Dashboard userId={session.user.id} totalProgramHp={totalProgramHp} />} />
+        <Route path="/kurser" element={<CourseStatusPage userId={session.user.id} programName={pName} />} />
         <Route path="/add-event" element={<AddEventPage userId={session.user.id} />} />
         <Route path="/kalender" element={<CalendarPage userId={session.user.id} />} />
-        <Route path="/installningar" element={<SettingsPage programName={profileData?.program_name || ''} startYear={profileData?.start_year || 0} onLogout={handleLogout} />} />
+        <Route path="/installningar" element={<SettingsPage programName={pName} startYear={profileData?.start_year || 0} onLogout={handleLogout} />} />
       </Routes>
     </AppLayout>
   );
