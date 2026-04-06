@@ -56,7 +56,7 @@ export const civilingenjorIndustriellIMUV: ProgramTemplate = {
 };
 
 export const civilingenjorIndustriellMAS1: ProgramTemplate = {
-  name: 'Civilingenjör i industriell ekonomi – Maskinteknik och hållbar produktinnovation, 300 HP (avvecklat, sista antagning HT 2023)',
+  name: 'Civilingenjör i industriell ekonomi – Maskinteknik och hållbar produktinnovation, 300 HP (sista antagning HT 2023)',
   courses: [
     ...sharedCourses,
     // År 3 – MAS1
