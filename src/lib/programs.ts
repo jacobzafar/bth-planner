@@ -1,5 +1,6 @@
 export type { ProgramCourse, ProgramTemplate } from './programs/types';
 export { civilingenjorIndustriell } from './programs/civilingenjor-industriell';
+export { civilingenjorIndustriellIMUV, civilingenjorIndustriellMAS1 } from './programs/civilingenjor-industriell-ieaci';
 export { civilingenjorAI } from './programs/civilingenjor-ai';
 export { civilingenjorDatasakerhet } from './programs/civilingenjor-datasakerhet';
 export { civilingenjorMarin } from './programs/civilingenjor-marin';
@@ -26,6 +27,7 @@ export { webbprogrammering } from './programs/webbprogrammering';
 
 import { ProgramTemplate } from './programs/types';
 import { civilingenjorIndustriell } from './programs/civilingenjor-industriell';
+import { civilingenjorIndustriellIMUV, civilingenjorIndustriellMAS1 } from './programs/civilingenjor-industriell-ieaci';
 import { civilingenjorAI } from './programs/civilingenjor-ai';
 import { civilingenjorDatasakerhet } from './programs/civilingenjor-datasakerhet';
 import { civilingenjorMarin } from './programs/civilingenjor-marin';
@@ -52,6 +54,8 @@ import { webbprogrammering } from './programs/webbprogrammering';
 
 export const bthPrograms: ProgramTemplate[] = [
   civilingenjorIndustriell,
+  civilingenjorIndustriellIMUV,
+  civilingenjorIndustriellMAS1,
   civilingenjorAI,
   civilingenjorDatasakerhet,
   civilingenjorMarin,
