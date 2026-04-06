@@ -54,6 +54,8 @@ import { webbprogrammering } from './programs/webbprogrammering';
 
 export const bthPrograms: ProgramTemplate[] = [
   civilingenjorIndustriell,
+  civilingenjorIndustriellIMUV,
+  civilingenjorIndustriellMAS1,
   civilingenjorAI,
   civilingenjorDatasakerhet,
   civilingenjorMarin,
