@@ -27,6 +27,7 @@ export { webbprogrammering } from './programs/webbprogrammering';
 
 import { ProgramTemplate } from './programs/types';
 import { civilingenjorIndustriell } from './programs/civilingenjor-industriell';
+import { civilingenjorIndustriellIMUV, civilingenjorIndustriellMAS1 } from './programs/civilingenjor-industriell-ieaci';
 import { civilingenjorAI } from './programs/civilingenjor-ai';
 import { civilingenjorDatasakerhet } from './programs/civilingenjor-datasakerhet';
 import { civilingenjorMarin } from './programs/civilingenjor-marin';
