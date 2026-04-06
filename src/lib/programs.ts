@@ -1,5 +1,6 @@
 export type { ProgramCourse, ProgramTemplate } from './programs/types';
 export { civilingenjorIndustriell } from './programs/civilingenjor-industriell';
+export { civilingenjorIndustriellIMUV, civilingenjorIndustriellMAS1 } from './programs/civilingenjor-industriell-ieaci';
 export { civilingenjorAI } from './programs/civilingenjor-ai';
 export { civilingenjorDatasakerhet } from './programs/civilingenjor-datasakerhet';
 export { civilingenjorMarin } from './programs/civilingenjor-marin';
