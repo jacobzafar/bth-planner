@@ -29,7 +29,7 @@ const sharedCourses = [
 ];
 
 export const civilingenjorIndustriellIMUV: ProgramTemplate = {
-  name: 'Civilingenjör i industriell ekonomi – Industriell mjukvaruutveckling, 300 HP (avvecklat, sista antagning HT 2023)',
+  name: 'Civilingenjör i industriell ekonomi – Industriell mjukvaruutveckling, 300 HP (sista antagning HT 2023)',
   courses: [
     ...sharedCourses,
     // År 3 – IMUV
