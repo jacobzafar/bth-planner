@@ -1,6 +1,6 @@
 import { ProgramTemplate } from './types';
 
-// Avvecklat program – sista antagning HT 2023
+// Sista antagning HT 2023 – programmet är fortfarande aktivt för antagna studenter
 // Två inriktningar: Industriell mjukvaruutveckling (IMUV) och Maskinteknik och hållbar produktinnovation (MAS1)
 
 const sharedCourses = [
