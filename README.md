@@ -5,7 +5,6 @@ samlar utbildningsplan, kurser, deluppgifter och kalender på ett ställe och
 hjälper studenten att prioritera vad som bör göras härnäst.
 
 - **Live (production):** https://bthplanner.com
-- **Live (Lovable preview):** https://bthplanner.lovable.app
 
 ## Funktioner
 
