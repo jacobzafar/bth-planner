@@ -39,6 +39,438 @@ interface Subtask {
   event_id: string | null;
 }
 
+interface PrereqStatus {
+  prereqs: string[];
+  unmetPrereqs: string[];
+  allMet: boolean;
+}
+
+// ---------- Helpers ----------
+
+function buildAllBthCourses() {
+  const map = new Map<string, { name: string; code: string; hp: number }>();
+  for (const program of bthPrograms) {
+    for (const course of program.courses) {
+      if (!map.has(course.code)) {
+        map.set(course.code, { name: course.name, code: course.code, hp: course.hp });
+      }
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+}
+
+function buildPrereqMap(programTemplate: typeof bthPrograms[number] | null) {
+  const map = new Map<string, string[]>();
+  if (!programTemplate) return map;
+  for (const course of programTemplate.courses) {
+    if (course.prerequisites && course.prerequisites.length > 0) {
+      map.set(course.code, course.prerequisites);
+    }
+  }
+  return map;
+}
+
+function buildBlocksMap(programTemplate: typeof bthPrograms[number] | null) {
+  const map = new Map<string, string[]>();
+  if (!programTemplate) return map;
+  for (const course of programTemplate.courses) {
+    if (!course.prerequisites) continue;
+    for (const prereq of course.prerequisites) {
+      const list = map.get(prereq);
+      if (list) list.push(course.code);
+      else map.set(prereq, [course.code]);
+    }
+  }
+  return map;
+}
+
+function buildCourseNameMap(
+  programTemplate: typeof bthPrograms[number] | null,
+  courses: UserCourse[],
+  allBthCourses: { code: string; name: string }[],
+) {
+  const map = new Map<string, string>();
+  if (programTemplate) {
+    for (const c of programTemplate.courses) map.set(c.code, c.name);
+  }
+  for (const c of courses) map.set(c.course_code, c.course_name);
+  for (const c of allBthCourses) {
+    if (!map.has(c.code)) map.set(c.code, c.name);
+  }
+  return map;
+}
+
+function groupCoursesByYear(courses: UserCourse[]): Record<number, UserCourse[]> {
+  return courses.reduce((acc, c) => {
+    if (!acc[c.year]) acc[c.year] = [];
+    acc[c.year].push(c);
+    return acc;
+  }, {} as Record<number, UserCourse[]>);
+}
+
+function computeYearStats(grouped: Record<number, UserCourse[]>) {
+  return Object.entries(grouped).map(([year, yearCourses]) => ({
+    year: Number(year),
+    completed: yearCourses.filter(c => c.status === 'completed').reduce((s, c) => s + c.hp, 0),
+    total: yearCourses.reduce((s, c) => s + c.hp, 0),
+  }));
+}
+
+// ---------- Sub-components ----------
+
+function AddCourseDialog({
+  open, onOpenChange, addSearch, setAddSearch, addYear, setAddYear,
+  filteredAvailable, onAddCourse,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  addSearch: string;
+  setAddSearch: (v: string) => void;
+  addYear: string;
+  setAddYear: (v: string) => void;
+  filteredAvailable: { code: string; name: string; hp: number }[];
+  onAddCourse: (course: { code: string; name: string; hp: number }) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1.5">
+          <Plus className="h-4 w-4" /> Lägg till kurs
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Lägg till kurs</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Sök kurskod eller kursnamn..." value={addSearch}
+              onChange={e => setAddSearch(e.target.value)} className="pl-10" />
+            {addSearch && (
+              <button onClick={() => setAddSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Lägg till i år:</span>
+            <Select value={addYear} onValueChange={setAddYear}>
+              <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4, 5].map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
+            {filteredAvailable.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                {addSearch ? 'Inga kurser hittades' : 'Alla kurser är redan tillagda'}
+              </p>
+            ) : (
+              filteredAvailable.map(course => (
+                <div key={course.code} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-semibold text-foreground">{course.code}</span>
+                      <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">{course.name}</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => onAddCourse(course)} className="shrink-0 gap-1">
+                    <Plus className="h-3 w-3" /> Lägg till
+                  </Button>
+                </div>
+              ))
+            )}
+            {filteredAvailable.length >= 50 && (
+              <p className="text-xs text-muted-foreground text-center py-2">Visar max 50 resultat. Använd sökning för att hitta fler.</p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PrereqInfo({
+  prereqStatus, blocks, courseNameMap,
+}: {
+  prereqStatus: PrereqStatus | null;
+  blocks: string[] | undefined;
+  courseNameMap: Map<string, string>;
+}) {
+  const hasPrereqs = prereqStatus && prereqStatus.prereqs.length > 0;
+  const hasBlocks = blocks && blocks.length > 0;
+  if (!hasPrereqs && !hasBlocks) return null;
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+      {hasPrereqs && (
+        <div className="flex items-start gap-1.5 text-xs">
+          <Lock className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+          <span className="text-muted-foreground">
+            Förkunskapskrav:{' '}
+            {prereqStatus!.prereqs.map((code, i) => {
+              const met = !prereqStatus!.unmetPrereqs.includes(code);
+              const name = courseNameMap.get(code);
+              return (
+                <span key={code}>
+                  {i > 0 && ', '}
+                  <span className={met ? 'text-success' : 'text-warning font-medium'}>
+                    {code}{name ? ` (${name})` : ''}
+                  </span>
+                </span>
+              );
+            })}
+          </span>
+        </div>
+      )}
+      {hasBlocks && (
+        <div className="flex items-start gap-1.5 text-xs">
+          <ArrowRight className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+          <span className="text-muted-foreground">
+            Spärrar:{' '}
+            {blocks!.map((code, i) => {
+              const name = courseNameMap.get(code);
+              return (
+                <span key={code}>{i > 0 && ', '}{code}{name ? ` (${name})` : ''}</span>
+              );
+            })}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SubtaskRow({
+  sub, onToggle, onDelete,
+}: {
+  sub: Subtask;
+  onToggle: (s: Subtask) => void;
+  onDelete: (s: Subtask) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 group py-1">
+      <button onClick={() => onToggle(sub)} className="shrink-0">
+        {sub.completed ? (
+          <Check className="h-4 w-4 text-success" />
+        ) : (
+          <Square className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
+      <div className={`flex-1 min-w-0 ${sub.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+        <span className="text-sm">{sub.title}</span>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {sub.due_date && <span>📅 {sub.due_date}</span>}
+          {sub.hp > 0 && <span>• {sub.hp} hp</span>}
+          {sub.event_id && <span>• 📌 I kalendern</span>}
+        </div>
+      </div>
+      <button
+        onClick={() => onDelete(sub)}
+        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
+function NewSubtaskForm({
+  courseId, text, date, hp, setText, setDate, setHp, onAdd,
+}: {
+  courseId: string;
+  text: string;
+  date: string;
+  hp: string;
+  setText: (v: string) => void;
+  setDate: (v: string) => void;
+  setHp: (v: string) => void;
+  onAdd: (courseId: string) => void;
+}) {
+  const disabled = !text.trim();
+  return (
+    <div className="space-y-2 pt-1 border-t border-border/30">
+      <Input
+        placeholder="Namn på delmoment..."
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAdd(courseId); } }}
+        className="h-8 text-sm"
+      />
+      <div className="flex items-center gap-2">
+        <Input
+          type="date"
+          placeholder="Datum"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          className="h-8 text-sm flex-1"
+        />
+        <Input
+          type="number"
+          placeholder="HP"
+          step="0.5"
+          min="0"
+          value={hp}
+          onChange={e => setHp(e.target.value)}
+          className="h-8 text-sm w-20"
+        />
+        <Button size="sm" variant="default" className="h-8 px-3 shrink-0 gap-1"
+          onClick={() => onAdd(courseId)} disabled={disabled}>
+          <Plus className="h-3 w-3" /> Lägg till
+        </Button>
+      </div>
+      {date && (
+        <p className="text-xs text-muted-foreground">📌 En kalenderhändelse skapas automatiskt</p>
+      )}
+    </div>
+  );
+}
+
+function SubtasksSection({
+  course, courseSubtasks, isExpanded, onToggleExpanded,
+  newText, newDate, newHp,
+  setNewText, setNewDate, setNewHp,
+  onToggleSubtask, onDeleteSubtask, onAddSubtask,
+}: {
+  course: UserCourse;
+  courseSubtasks: Subtask[];
+  isExpanded: boolean;
+  onToggleExpanded: (id: string) => void;
+  newText: string;
+  newDate: string;
+  newHp: string;
+  setNewText: (v: string) => void;
+  setNewDate: (v: string) => void;
+  setNewHp: (v: string) => void;
+  onToggleSubtask: (s: Subtask) => void;
+  onDeleteSubtask: (s: Subtask) => void;
+  onAddSubtask: (courseId: string) => void;
+}) {
+  return (
+    <Collapsible open={isExpanded} onOpenChange={() => onToggleExpanded(course.id)}>
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50 w-full text-xs text-muted-foreground hover:text-foreground transition-colors">
+          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          Delmoment ({courseSubtasks.length})
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 space-y-1.5">
+        {courseSubtasks.map(sub => (
+          <SubtaskRow key={sub.id} sub={sub} onToggle={onToggleSubtask} onDelete={onDeleteSubtask} />
+        ))}
+        <NewSubtaskForm
+          courseId={course.id}
+          text={newText} date={newDate} hp={newHp}
+          setText={setNewText} setDate={setNewDate} setHp={setNewHp}
+          onAdd={onAddSubtask}
+        />
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+interface CourseCardProps {
+  course: UserCourse;
+  prereqStatus: PrereqStatus | null;
+  blocks: string[] | undefined;
+  courseNameMap: Map<string, string>;
+  courseSubtasks: Subtask[];
+  isExpanded: boolean;
+  newText: string;
+  newDate: string;
+  newHp: string;
+  onUpdateStatus: (id: string, s: CourseStatus) => void;
+  onDelete: (id: string, name: string) => void;
+  onToggleExpanded: (id: string) => void;
+  setNewText: (v: string) => void;
+  setNewDate: (v: string) => void;
+  setNewHp: (v: string) => void;
+  onToggleSubtask: (s: Subtask) => void;
+  onDeleteSubtask: (s: Subtask) => void;
+  onAddSubtask: (courseId: string) => void;
+}
+
+function CourseCard(props: CourseCardProps) {
+  const {
+    course, prereqStatus, blocks, courseNameMap, courseSubtasks, isExpanded,
+    newText, newDate, newHp,
+    onUpdateStatus, onDelete, onToggleExpanded,
+    setNewText, setNewDate, setNewHp,
+    onToggleSubtask, onDeleteSubtask, onAddSubtask,
+  } = props;
+
+  const completedSubs = courseSubtasks.filter(s => s.completed).length;
+  const unmet = prereqStatus && !prereqStatus.allMet && course.status === 'not_started';
+  const cardClass = unmet ? 'border-warning/30' : '';
+
+  return (
+    <Card className={cardClass}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[180px]">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
+              <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
+              {courseSubtasks.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {completedSubs}/{courseSubtasks.length} delmoment
+                </Badge>
+              )}
+              {unmet && (
+                <Tooltip>
+                  <TooltipTrigger><AlertCircle className="h-4 w-4 text-warning" /></TooltipTrigger>
+                  <TooltipContent><p>Förkunskapskrav ej uppfyllda</p></TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">{course.course_name}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={course.status} onValueChange={(v) => onUpdateStatus(course.id, v as CourseStatus)}>
+              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="completed">✅ Helt avklarad</SelectItem>
+                <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
+                <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
+              </SelectContent>
+            </Select>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                  onClick={() => onDelete(course.id, course.course_name)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ta bort kurs</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+
+        <PrereqInfo prereqStatus={prereqStatus} blocks={blocks} courseNameMap={courseNameMap} />
+
+        <SubtasksSection
+          course={course}
+          courseSubtasks={courseSubtasks}
+          isExpanded={isExpanded}
+          onToggleExpanded={onToggleExpanded}
+          newText={newText} newDate={newDate} newHp={newHp}
+          setNewText={setNewText} setNewDate={setNewDate} setNewHp={setNewHp}
+          onToggleSubtask={onToggleSubtask}
+          onDeleteSubtask={onDeleteSubtask}
+          onAddSubtask={onAddSubtask}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------- Main page ----------
+
 export default function CourseStatusPage({ userId, programName }: CourseStatusPageProps) {
   const [courses, setCourses] = useState<UserCourse[]>([]);
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
@@ -57,17 +489,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     return bthPrograms.find(p => p.name === programName) || null;
   }, [programName]);
 
-  const allBthCourses = useMemo(() => {
-    const map = new Map<string, { name: string; code: string; hp: number }>();
-    for (const program of bthPrograms) {
-      for (const course of program.courses) {
-        if (!map.has(course.code)) {
-          map.set(course.code, { name: course.name, code: course.code, hp: course.hp });
-        }
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
-  }, []);
+  const allBthCourses = useMemo(() => buildAllBthCourses(), []);
 
   const availableCourses = useMemo(() => {
     const userCodes = new Set(courses.map(c => c.course_code));
@@ -77,45 +499,17 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const filteredAvailable = useMemo(() => {
     if (!addSearch) return availableCourses.slice(0, 50);
     const q = addSearch.toLowerCase();
-    return availableCourses.filter(c =>
-      c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
-    ).slice(0, 50);
+    return availableCourses
+      .filter(c => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q))
+      .slice(0, 50);
   }, [availableCourses, addSearch]);
 
-  const prereqMap = useMemo(() => {
-    if (!programTemplate) return new Map<string, string[]>();
-    const map = new Map<string, string[]>();
-    for (const course of programTemplate.courses) {
-      if (course.prerequisites && course.prerequisites.length > 0) {
-        map.set(course.code, course.prerequisites);
-      }
-    }
-    return map;
-  }, [programTemplate]);
-
-  const blocksMap = useMemo(() => {
-    const map = new Map<string, string[]>();
-    if (!programTemplate) return map;
-    for (const course of programTemplate.courses) {
-      if (course.prerequisites) {
-        for (const prereq of course.prerequisites) {
-          if (!map.has(prereq)) map.set(prereq, []);
-          map.get(prereq)!.push(course.code);
-        }
-      }
-    }
-    return map;
-  }, [programTemplate]);
-
-  const courseNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    if (programTemplate) {
-      for (const c of programTemplate.courses) map.set(c.code, c.name);
-    }
-    for (const c of courses) map.set(c.course_code, c.course_name);
-    for (const c of allBthCourses) { if (!map.has(c.code)) map.set(c.code, c.name); }
-    return map;
-  }, [programTemplate, courses, allBthCourses]);
+  const prereqMap = useMemo(() => buildPrereqMap(programTemplate), [programTemplate]);
+  const blocksMap = useMemo(() => buildBlocksMap(programTemplate), [programTemplate]);
+  const courseNameMap = useMemo(
+    () => buildCourseNameMap(programTemplate, courses, allBthCourses),
+    [programTemplate, courses, allBthCourses],
+  );
 
   useEffect(() => {
     fetchData();
@@ -165,11 +559,11 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     const { error } = await supabase.from('user_courses').delete().eq('id', courseId);
     if (error) {
       toast.error('Kunde inte ta bort kursen');
-    } else {
-      setCourses(prev => prev.filter(c => c.id !== courseId));
-      setSubtasks(prev => prev.filter(s => s.course_id !== courseId));
-      toast.success(`${courseName} borttagen`);
+      return;
     }
+    setCourses(prev => prev.filter(c => c.id !== courseId));
+    setSubtasks(prev => prev.filter(s => s.course_id !== courseId));
+    toast.success(`${courseName} borttagen`);
   };
 
   const handleAddCourse = async (course: { code: string; name: string; hp: number }) => {
@@ -181,10 +575,26 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
     if (error) {
       toast.error('Kunde inte lägga till kursen');
-    } else if (data) {
+      return;
+    }
+    if (data) {
       setCourses(prev => [...prev, data as UserCourse]);
       toast.success(`${course.name} tillagd i år ${year}`);
     }
+  };
+
+  const createLinkedEvent = async (text: string, dueDate: string, course: UserCourse) => {
+    const { data, error } = await supabase.from('study_events').insert({
+      user_id: userId,
+      title: text,
+      course_code: course.course_code,
+      event_type: 'assignment',
+      due_date: dueDate,
+      status: 'upcoming',
+    }).select('id').single();
+
+    if (error || !data) return null;
+    return data.id as string;
   };
 
   const handleAddSubtask = async (courseId: string) => {
@@ -195,21 +605,9 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     const hp = parseFloat(newSubtaskHp[courseId] || '0') || 0;
     const course = courses.find(c => c.id === courseId);
 
-    // Create calendar event if date is set
     let eventId: string | null = null;
     if (dueDate && course) {
-      const { data: eventData, error: eventError } = await supabase.from('study_events').insert({
-        user_id: userId,
-        title: text,
-        course_code: course.course_code,
-        event_type: 'assignment',
-        due_date: dueDate,
-        status: 'upcoming',
-      }).select('id').single();
-
-      if (!eventError && eventData) {
-        eventId = eventData.id;
-      }
+      eventId = await createLinkedEvent(text, dueDate, course);
     }
 
     const { data, error } = await supabase.from('course_subtasks').insert({
@@ -219,7 +617,9 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
     if (error) {
       toast.error('Kunde inte lägga till delmoment');
-    } else if (data) {
+      return;
+    }
+    if (data) {
       setSubtasks(prev => [...prev, data as Subtask]);
       setNewSubtaskText(prev => ({ ...prev, [courseId]: '' }));
       setNewSubtaskDate(prev => ({ ...prev, [courseId]: '' }));
@@ -233,49 +633,36 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     const { error } = await supabase.from('course_subtasks')
       .update({ completed: newCompleted }).eq('id', subtask.id);
 
-    if (!error) {
-      setSubtasks(prev => prev.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s));
-      // Also update the linked event status
-      if (subtask.event_id) {
-        await supabase.from('study_events')
-          .update({ status: newCompleted ? 'complete' : 'upcoming' })
-          .eq('id', subtask.event_id);
-      }
+    if (error) return;
+    setSubtasks(prev => prev.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s));
+    if (subtask.event_id) {
+      await supabase.from('study_events')
+        .update({ status: newCompleted ? 'complete' : 'upcoming' })
+        .eq('id', subtask.event_id);
     }
   };
 
   const deleteSubtask = async (subtask: Subtask) => {
     const { error } = await supabase.from('course_subtasks').delete().eq('id', subtask.id);
-    if (!error) {
-      setSubtasks(prev => prev.filter(s => s.id !== subtask.id));
-      // Also delete linked event
-      if (subtask.event_id) {
-        await supabase.from('study_events').delete().eq('id', subtask.event_id);
-      }
+    if (error) return;
+    setSubtasks(prev => prev.filter(s => s.id !== subtask.id));
+    if (subtask.event_id) {
+      await supabase.from('study_events').delete().eq('id', subtask.event_id);
     }
   };
 
-  const getPrereqStatus = (courseCode: string) => {
+  const getPrereqStatus = (courseCode: string): PrereqStatus | null => {
     const prereqs = prereqMap.get(courseCode);
     if (!prereqs || prereqs.length === 0) return null;
     const unmetPrereqs = prereqs.filter(prereqCode => {
-      const course = courses.find(c => c.course_code === prereqCode);
-      return !course || course.status !== 'completed';
+      const c = courses.find(uc => uc.course_code === prereqCode);
+      return !c || c.status !== 'completed';
     });
     return { prereqs, unmetPrereqs, allMet: unmetPrereqs.length === 0 };
   };
 
-  const groupedByYear = courses.reduce((acc, c) => {
-    if (!acc[c.year]) acc[c.year] = [];
-    acc[c.year].push(c);
-    return acc;
-  }, {} as Record<number, UserCourse[]>);
-
-  const yearHpStats = Object.entries(groupedByYear).map(([year, yearCourses]) => ({
-    year: Number(year),
-    completed: yearCourses.filter(c => c.status === 'completed').reduce((s, c) => s + c.hp, 0),
-    total: yearCourses.reduce((s, c) => s + c.hp, 0),
-  }));
+  const groupedByYear = useMemo(() => groupCoursesByYear(courses), [courses]);
+  const yearHpStats = useMemo(() => computeYearStats(groupedByYear), [groupedByYear]);
 
   if (loading) {
     return (
@@ -284,6 +671,8 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       </div>
     );
   }
+
+  const sortedYearEntries = Object.entries(groupedByYear).sort(([a], [b]) => Number(a) - Number(b));
 
   return (
     <div className="min-h-screen bg-background">
@@ -295,250 +684,60 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       <main className="container max-w-2xl py-4 animate-slide-up">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-heading text-2xl font-bold text-foreground">Dina kurser</h2>
-          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5">
-                <Plus className="h-4 w-4" /> Lägg till kurs
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
-              <DialogHeader>
-                <DialogTitle>Lägg till kurs</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Sök kurskod eller kursnamn..." value={addSearch}
-                    onChange={e => setAddSearch(e.target.value)} className="pl-10" />
-                  {addSearch && (
-                    <button onClick={() => setAddSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Lägg till i år:</span>
-                  <Select value={addYear} onValueChange={setAddYear}>
-                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5].map(y => (
-                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
-                  {filteredAvailable.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      {addSearch ? 'Inga kurser hittades' : 'Alla kurser är redan tillagda'}
-                    </p>
-                  ) : (
-                    filteredAvailable.map(course => (
-                      <div key={course.code} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-semibold text-foreground">{course.code}</span>
-                            <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">{course.name}</p>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => handleAddCourse(course)} className="shrink-0 gap-1">
-                          <Plus className="h-3 w-3" /> Lägg till
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                  {filteredAvailable.length >= 50 && (
-                    <p className="text-xs text-muted-foreground text-center py-2">Visar max 50 resultat. Använd sökning för att hitta fler.</p>
-                  )}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <AddCourseDialog
+            open={addDialogOpen} onOpenChange={setAddDialogOpen}
+            addSearch={addSearch} setAddSearch={setAddSearch}
+            addYear={addYear} setAddYear={setAddYear}
+            filteredAvailable={filteredAvailable}
+            onAddCourse={handleAddCourse}
+          />
         </div>
         <p className="text-muted-foreground mb-6">
           Markera status och hantera delmoment för varje kurs.
         </p>
 
         <TooltipProvider>
-          {Object.entries(groupedByYear)
-            .sort(([a], [b]) => Number(a) - Number(b))
-            .map(([year, yearCourses]) => {
-              const stats = yearHpStats.find(s => s.year === Number(year));
-              const yearProgress = stats ? (stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0) : 0;
+          {sortedYearEntries.map(([year, yearCourses]) => {
+            const stats = yearHpStats.find(s => s.year === Number(year));
+            const yearProgress = stats && stats.total > 0
+              ? Math.round((stats.completed / stats.total) * 100)
+              : 0;
 
-              return (
-                <div key={year} className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-heading font-semibold text-foreground">År {year}</h3>
-                    <span className="text-xs text-muted-foreground">{stats?.completed}/{stats?.total} HP ({yearProgress}%)</span>
-                  </div>
-                  <Progress value={yearProgress} className="h-1.5 mb-3" />
-                  <div className="space-y-2">
-                    {yearCourses.map(course => {
-                      const prereqStatus = getPrereqStatus(course.course_code);
-                      const blocks = blocksMap.get(course.course_code);
-                      const hasPrereqInfo = prereqStatus || (blocks && blocks.length > 0);
-                      const courseSubtasks = subtasks.filter(s => s.course_id === course.id);
-                      const completedSubs = courseSubtasks.filter(s => s.completed).length;
-                      const isExpanded = expandedCourses.has(course.id);
-
-                      return (
-                        <Card key={course.id} className={prereqStatus && !prereqStatus.allMet && course.status === 'not_started' ? 'border-warning/30' : ''}>
-                          <CardContent className="p-4">
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <div className="flex-1 min-w-[180px]">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
-                                  <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
-                                  {courseSubtasks.length > 0 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {completedSubs}/{courseSubtasks.length} delmoment
-                                    </Badge>
-                                  )}
-                                  {prereqStatus && !prereqStatus.allMet && course.status === 'not_started' && (
-                                    <Tooltip>
-                                      <TooltipTrigger><AlertCircle className="h-4 w-4 text-warning" /></TooltipTrigger>
-                                      <TooltipContent><p>Förkunskapskrav ej uppfyllda</p></TooltipContent>
-                                    </Tooltip>
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground">{course.course_name}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Select value={course.status} onValueChange={(v) => updateStatus(course.id, v as CourseStatus)}>
-                                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="completed">✅ Helt avklarad</SelectItem>
-                                    <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
-                                    <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                                      onClick={() => handleDelete(course.id, course.course_name)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Ta bort kurs</TooltipContent>
-                                </Tooltip>
-                              </div>
-                            </div>
-
-                            {hasPrereqInfo && (
-                              <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
-                                {prereqStatus && prereqStatus.prereqs.length > 0 && (
-                                  <div className="flex items-start gap-1.5 text-xs">
-                                    <Lock className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
-                                    <span className="text-muted-foreground">
-                                      Förkunskapskrav:{' '}
-                                      {prereqStatus.prereqs.map((code, i) => {
-                                        const met = !prereqStatus.unmetPrereqs.includes(code);
-                                        return (
-                                          <span key={code}>
-                                            {i > 0 && ', '}
-                                            <span className={met ? 'text-success' : 'text-warning font-medium'}>
-                                              {code}{courseNameMap.get(code) ? ` (${courseNameMap.get(code)})` : ''}
-                                            </span>
-                                          </span>
-                                        );
-                                      })}
-                                    </span>
-                                  </div>
-                                )}
-                                {blocks && blocks.length > 0 && (
-                                  <div className="flex items-start gap-1.5 text-xs">
-                                    <ArrowRight className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
-                                    <span className="text-muted-foreground">
-                                      Spärrar:{' '}
-                                      {blocks.map((code, i) => (
-                                        <span key={code}>{i > 0 && ', '}{code}{courseNameMap.get(code) ? ` (${courseNameMap.get(code)})` : ''}</span>
-                                      ))}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Subtasks section */}
-                            <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(course.id)}>
-                              <CollapsibleTrigger asChild>
-                                <button className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50 w-full text-xs text-muted-foreground hover:text-foreground transition-colors">
-                                  {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                                  Delmoment ({courseSubtasks.length})
-                                </button>
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="mt-2 space-y-1.5">
-                                {courseSubtasks.map(sub => (
-                                  <div key={sub.id} className="flex items-center gap-2 group py-1">
-                                    <button onClick={() => toggleSubtask(sub)} className="shrink-0">
-                                      {sub.completed ? (
-                                        <Check className="h-4 w-4 text-success" />
-                                      ) : (
-                                        <Square className="h-4 w-4 text-muted-foreground" />
-                                      )}
-                                    </button>
-                                    <div className={`flex-1 min-w-0 ${sub.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                                      <span className="text-sm">{sub.title}</span>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        {sub.due_date && <span>📅 {sub.due_date}</span>}
-                                        {sub.hp > 0 && <span>• {sub.hp} hp</span>}
-                                        {sub.event_id && <span>• 📌 I kalendern</span>}
-                                      </div>
-                                    </div>
-                                    <button
-                                      onClick={() => deleteSubtask(sub)}
-                                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                ))}
-                                <div className="space-y-2 pt-1 border-t border-border/30">
-                                  <Input
-                                    placeholder="Namn på delmoment..."
-                                    value={newSubtaskText[course.id] || ''}
-                                    onChange={e => setNewSubtaskText(prev => ({ ...prev, [course.id]: e.target.value }))}
-                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(course.id); } }}
-                                    className="h-8 text-sm"
-                                  />
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      type="date"
-                                      placeholder="Datum"
-                                      value={newSubtaskDate[course.id] || ''}
-                                      onChange={e => setNewSubtaskDate(prev => ({ ...prev, [course.id]: e.target.value }))}
-                                      className="h-8 text-sm flex-1"
-                                    />
-                                    <Input
-                                      type="number"
-                                      placeholder="HP"
-                                      step="0.5"
-                                      min="0"
-                                      value={newSubtaskHp[course.id] || ''}
-                                      onChange={e => setNewSubtaskHp(prev => ({ ...prev, [course.id]: e.target.value }))}
-                                      className="h-8 text-sm w-20"
-                                    />
-                                    <Button size="sm" variant="default" className="h-8 px-3 shrink-0 gap-1"
-                                      onClick={() => handleAddSubtask(course.id)} disabled={!(newSubtaskText[course.id] || '').trim()}>
-                                      <Plus className="h-3 w-3" /> Lägg till
-                                    </Button>
-                                  </div>
-                                  {newSubtaskDate[course.id] && (
-                                    <p className="text-xs text-muted-foreground">📌 En kalenderhändelse skapas automatiskt</p>
-                                  )}
-                                </div>
-                              </CollapsibleContent>
-                            </Collapsible>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
+            return (
+              <div key={year} className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-heading font-semibold text-foreground">År {year}</h3>
+                  <span className="text-xs text-muted-foreground">{stats?.completed}/{stats?.total} HP ({yearProgress}%)</span>
                 </div>
-              );
-            })}
+                <Progress value={yearProgress} className="h-1.5 mb-3" />
+                <div className="space-y-2">
+                  {yearCourses.map(course => (
+                    <CourseCard
+                      key={course.id}
+                      course={course}
+                      prereqStatus={getPrereqStatus(course.course_code)}
+                      blocks={blocksMap.get(course.course_code)}
+                      courseNameMap={courseNameMap}
+                      courseSubtasks={subtasks.filter(s => s.course_id === course.id)}
+                      isExpanded={expandedCourses.has(course.id)}
+                      newText={newSubtaskText[course.id] || ''}
+                      newDate={newSubtaskDate[course.id] || ''}
+                      newHp={newSubtaskHp[course.id] || ''}
+                      onUpdateStatus={updateStatus}
+                      onDelete={handleDelete}
+                      onToggleExpanded={toggleExpanded}
+                      setNewText={(v) => setNewSubtaskText(prev => ({ ...prev, [course.id]: v }))}
+                      setNewDate={(v) => setNewSubtaskDate(prev => ({ ...prev, [course.id]: v }))}
+                      setNewHp={(v) => setNewSubtaskHp(prev => ({ ...prev, [course.id]: v }))}
+                      onToggleSubtask={toggleSubtask}
+                      onDeleteSubtask={deleteSubtask}
+                      onAddSubtask={handleAddSubtask}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </TooltipProvider>
 
         <Button size="lg" onClick={handleSave} disabled={saving} className="w-full gap-2 text-base mt-4">
