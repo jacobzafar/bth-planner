@@ -74,7 +74,7 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   };
 
   // Group HP by year
-  const years = [...new Set(courses.map(c => c.year))].sort();
+  const years = [...new Set(courses.map(c => c.year))].sort((a, b) => a - b);
   const hpByYear = years.map(year => {
     const yearCourses = courses.filter(c => c.year === year);
     return {
