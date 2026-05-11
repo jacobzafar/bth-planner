@@ -53,14 +53,22 @@ export default function AuthPage() {
         toast.success('Återställningslänk skickad! Kontrollera din e-post.');
         setMode('login');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Något gick fel');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Något gick fel';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const title = mode === 'login' ? 'Logga in' : mode === 'signup' ? 'Skapa konto' : 'Glömt lösenord';
+  let title: string;
+  if (mode === 'login') {
+    title = 'Logga in';
+  } else if (mode === 'signup') {
+    title = 'Skapa konto';
+  } else {
+    title = 'Glömt lösenord';
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">

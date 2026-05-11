@@ -47,8 +47,9 @@ export default function ResetPassword() {
       if (error) throw error;
       toast.success('Lösenordet har uppdaterats!');
       navigate('/');
-    } catch (error: any) {
-      toast.error(error.message || 'Något gick fel');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Något gick fel';
+      toast.error(message);
     } finally {
       setLoading(false);
     }

@@ -548,8 +548,9 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
         if (error) throw error;
       }
       toast.success('Kursstatus sparad!');
-    } catch (error: any) {
-      toast.error(error.message || 'Kunde inte spara');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Kunde inte spara';
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -567,7 +568,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   };
 
   const handleAddCourse = async (course: { code: string; name: string; hp: number }) => {
-    const year = parseInt(addYear);
+    const year = parseInt(addYear, 10);
     const { data, error } = await supabase.from('user_courses').insert({
       user_id: userId, course_code: course.code, course_name: course.name,
       hp: course.hp, year, status: 'not_started',
@@ -602,7 +603,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     if (!text) return;
 
     const dueDate = newSubtaskDate[courseId] || null;
-    const hp = parseFloat(newSubtaskHp[courseId] || '0') || 0;
+    const hp = Number.parseFloat(newSubtaskHp[courseId] || '0') || 0;
     const course = courses.find(c => c.id === courseId);
 
     let eventId: string | null = null;
