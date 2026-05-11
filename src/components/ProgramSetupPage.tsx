@@ -42,7 +42,7 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
         .from('profiles')
         .update({ 
           program_name: program.name, 
-          start_year: parseInt(startYear),
+          start_year: parseInt(startYear, 10),
           setup_complete: true 
         })
         .eq('user_id', userId);
@@ -50,7 +50,7 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
       if (profileError) throw profileError;
 
       // Calculate which years the student has completed based on start year
-      const yearsStudied = currentYear - parseInt(startYear);
+      const yearsStudied = currentYear - parseInt(startYear, 10);
 
       // Insert all courses from the program for years up to current
       const coursesToInsert = program.courses
@@ -73,8 +73,9 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
 
       toast.success('Program valt!');
       onComplete();
-    } catch (error: any) {
-      toast.error(error.message || 'Något gick fel');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Något gick fel';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
