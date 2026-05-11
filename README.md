@@ -1,73 +1,167 @@
-# Welcome to your Lovable project
+# BTH Studieplanerare (BTH Planner)
 
-## Project info
+En studieplanerare för studenter vid Blekinge Tekniska Högskola (BTH). Appen
+samlar utbildningsplan, kurser, deluppgifter och kalender på ett ställe och
+hjälper studenten att prioritera vad som bör göras härnäst.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+- **Live (production):** https://bthplanner.com
+- **Live (Lovable preview):** https://bthplanner.lovable.app
 
-## How can I edit this code?
+## Funktioner
 
-There are several ways of editing your application.
+- **Onboarding** med val av BTH-program och startår, som automatiskt
+  laddar in rätt kurser från utbildningsplanen.
+- **Kursöversikt** med HP-progress per år, status (ej påbörjad / pågående
+  / godkänd) och förkunskapskrav som tydliggör om en kurs kräver
+  *genomgången* eller *avklarad* förkunskap.
+- **Deluppgifter** per kurs som synkas tvåvägs med kalendern och
+  uppgiftslistan.
+- **"Fokus härnäst"** – en prioriteringsalgoritm som rangordnar vad
+  studenten bör arbeta med baserat på deadlines, HP och kursstatus.
+- **Kalender** för tentor, inlämningar och egna studiehändelser.
+- **Autentisering** via e-post + lösenord med "Glömt lösenord"-flöde.
 
-**Use Lovable**
+All UI är på svenska.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Teknikstack
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend:** React 18 + TypeScript + Vite 5
+- **UI:** Tailwind CSS v3, shadcn/ui (Radix UI), lucide-react
+- **Routing:** react-router-dom v6
+- **Data & state:** @tanstack/react-query, lokala hooks
+- **Formulär & validering:** react-hook-form + zod
+- **Backend:** Lovable Cloud (Supabase) – Auth, Postgres med RLS, Edge
+  Functions, Storage
+- **Tester:** Vitest + @testing-library/react + jsdom
+- **Lint:** ESLint 9 + typescript-eslint
 
-**Use your preferred IDE**
+## Kom igång lokalt
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Krav: **Node.js 20+** och **npm** (eller bun/pnpm).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# 1. Klona repot
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 2. Installera beroenden
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 3. Skapa en .env utifrån mallen och fyll i värdena
+cp .env.example .env
+
+# 4. Starta dev-servern
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Appen körs som standard på <http://localhost:8080>.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+> När projektet körs via Lovable populeras `.env` automatiskt av Lovable
+> Cloud – du behöver inte konfigurera Supabase manuellt där.
 
-**Use GitHub Codespaces**
+## Miljövariabler
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Alla variabler dokumenteras i [`.env.example`](./.env.example).
 
-## What technologies are used for this project?
+| Variabel                          | Beskrivning                                  |
+| --------------------------------- | -------------------------------------------- |
+| `VITE_SUPABASE_URL`               | Publik Supabase-URL för klienten             |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`   | Anon/publishable key (säker i browsern)      |
+| `VITE_SUPABASE_PROJECT_ID`        | Supabase-projektets ref                      |
+| `SUPABASE_URL`                    | Samma URL, för verktyg/skript utan Vite      |
+| `SUPABASE_PUBLISHABLE_KEY`        | Samma anon-key, för verktyg/skript           |
 
-This project is built with:
+`.env` är ignorerad av git och ska **aldrig** committas. Endast publika
+Supabase-nycklar (anon/publishable) används i klientkoden – inga
+service-role-nycklar.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## NPM-skript
 
-## How can I deploy this project?
+| Skript              | Vad det gör                                       |
+| ------------------- | ------------------------------------------------- |
+| `npm run dev`       | Startar Vite dev-server med HMR                   |
+| `npm run build`     | Produktionsbygge till `dist/`                     |
+| `npm run build:dev` | Utvecklingsbygge (källmappar, ingen minifiering)  |
+| `npm run preview`   | Förhandsgranska produktionsbygget lokalt          |
+| `npm run lint`      | Kör ESLint över hela projektet                    |
+| `npm run test`      | Kör Vitest en gång (CI-läge)                      |
+| `npm run test:watch`| Kör Vitest i watch-läge                           |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Mappstruktur
 
-## Can I connect a custom domain to my Lovable project?
+```text
+src/
+├─ assets/                Bilder och statiska resurser
+├─ components/            App-komponenter (sidor och vyer)
+│  ├─ ui/                 shadcn/ui-komponenter (genererade)
+│  ├─ AuthPage.tsx        Logga in / registrera / glömt lösenord
+│  ├─ Dashboard.tsx       Startvy med "Fokus härnäst"
+│  ├─ CourseStatusPage.tsx Kursöversikt och deluppgifter
+│  ├─ CalendarPage.tsx    Kalendervy
+│  ├─ AddEventPage.tsx    Skapa studiehändelse
+│  ├─ ProgramSetupPage.tsx Onboarding och programval
+│  ├─ SettingsPage.tsx    Inställningar
+│  └─ AppLayout.tsx       Layout med navigation
+├─ hooks/                 Återanvändbara React-hooks
+├─ integrations/supabase/ Auto-genererad Supabase-klient och typer
+├─ lib/
+│  ├─ programs/           Program-/kursmallar per BTH-program
+│  ├─ prioritization.ts   "Fokus härnäst"-algoritm
+│  ├─ store.ts, hooks.ts  Klient-state-helpers
+│  ├─ types.ts            Domäntyper
+│  └─ utils.ts            Hjälpfunktioner
+├─ pages/                 Routade sidor (Index, NotFound, ResetPassword)
+├─ test/                  Test-setup för Vitest
+├─ App.tsx, main.tsx      App-rot och bootstrap
+└─ index.css              Tailwind + designsystem-tokens
+supabase/                 Supabase-konfig och migrationer
+```
 
-Yes, you can!
+## Designsystem
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Färger, typografi och spacing definieras som semantiska tokens i
+`src/index.css` och `tailwind.config.ts`. Komponenter använder tokens
+(`bg-background`, `text-primary`, …) – aldrig råa färgklasser. Temat är
+inspirerat av BTH:s marinblå-och-vita profil.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Tester
+
+Tester körs med **Vitest** och **@testing-library/react** mot **jsdom**.
+Test-setup ligger i `src/test/`. Lägg testfiler bredvid koden som
+`*.test.ts(x)`.
+
+```sh
+npm run test         # kör en gång
+npm run test:watch   # watch-läge under utveckling
+```
+
+## Backend (Lovable Cloud / Supabase)
+
+- **Auth:** E-post + lösenord, inkl. "Glömt lösenord"-flöde via
+  `supabase.auth.resetPasswordForEmail` som leder till `/reset-password`.
+- **Databas:** Postgres med Row-Level Security. Tabeller (`profiles`,
+  `user_courses`, `course_subtasks`, `study_events`, m.fl.) skyddas så
+  att en användare bara ser sin egen data.
+- **Migrationer:** Alla schemaändringar ligger i `supabase/migrations/`
+  och appliceras automatiskt av Lovable Cloud.
+- **Klient:** `src/integrations/supabase/client.ts` och `types.ts`
+  genereras automatiskt – redigera dem inte för hand.
+
+## Driftsättning
+
+Projektet driftsätts via Lovable:
+
+1. Öppna projektet i [Lovable](https://lovable.dev).
+2. Klicka **Share → Publish** för att deploya.
+3. Egen domän kan kopplas via **Project → Settings → Domains** (se
+   [Lovables docs](https://docs.lovable.dev/features/custom-domain)).
+
+Bygget som driftsätts är resultatet av `npm run build` (statiska filer i
+`dist/`), så projektet kan även hostas på valfri statisk värd om det
+behövs.
+
+## Bidra
+
+1. Skapa en branch.
+2. Kör `npm run lint` och `npm run test` innan du pushar.
+3. Öppna en pull request.
