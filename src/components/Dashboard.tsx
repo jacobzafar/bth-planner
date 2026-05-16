@@ -90,17 +90,35 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   }, [userId]);
 
   const fetchData = async () => {
-    const [eventsRes, coursesRes, subtasksRes] = await Promise.all([
+    const [eventsRes, coursesRes, subtasksRes, profileRes] = await Promise.all([
       supabase.from('study_events').select('*').eq('user_id', userId).order('due_date', { ascending: true }),
       supabase.from('user_courses').select('status, hp, year, course_code, course_name').eq('user_id', userId),
       supabase.from('course_subtasks').select('id, event_id, hp, completed').eq('user_id', userId),
+      supabase.from('profiles').select('program_name').eq('user_id', userId).maybeSingle(),
     ]);
 
     if (eventsRes.data) setEvents(eventsRes.data as StudyEvent[]);
     if (coursesRes.data) setCourses(coursesRes.data as CourseData[]);
     if (subtasksRes.data) setSubtasks(subtasksRes.data as LinkedSubtask[]);
+    if (profileRes.data?.program_name) setProgramName(profileRes.data.program_name);
     setLoading(false);
   };
+
+  // Build map: courseCode -> array of courses it blocks (i.e. courses that list it as prerequisite)
+  const blockingMap = useMemo(() => {
+    const map = new Map<string, { code: string; year: number; semester: 'HT' | 'VT' }[]>();
+    if (!programName) return map;
+    const program = bthPrograms.find(p => p.name === programName);
+    if (!program) return map;
+    program.courses.forEach(c => {
+      (c.prerequisites || []).forEach(pre => {
+        const arr = map.get(pre) || [];
+        arr.push({ code: c.code, year: c.year, semester: c.semester });
+        map.set(pre, arr);
+      });
+    });
+    return map;
+  }, [programName]);
 
   const completedHp = courses.filter(c => c.status === 'completed').reduce((sum, c) => sum + c.hp, 0);
   const partlyHp = courses.filter(c => c.status === 'partly').reduce((sum, c) => sum + c.hp, 0);
