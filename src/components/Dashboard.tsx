@@ -446,9 +446,9 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
       </div>
 
       {/* Detail modal */}
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-md">
-          {selected && (
+      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setEditing(false); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          {selected && !editing && (
             <>
               <DialogHeader>
                 <DialogTitle className="font-heading pr-6">{selected.title}</DialogTitle>
@@ -503,14 +503,109 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
               </div>
 
               <DialogFooter className="flex-col sm:flex-row gap-2">
-                {selected.status !== 'complete' && (
-                  <Button onClick={() => handleComplete(selected.id)} className="gap-2">
-                    <CheckCircle2 className="h-4 w-4" /> Markera klar
-                  </Button>
-                )}
+                <Button onClick={toggleStatus} disabled={saving} className="gap-2">
+                  {selected.status === 'complete'
+                    ? (<><RotateCcw className="h-4 w-4" /> Markera kommande</>)
+                    : (<><CheckCircle2 className="h-4 w-4" /> Markera klar</>)}
+                </Button>
+                <Button variant="outline" onClick={beginEdit} className="gap-2">
+                  <Pencil className="h-4 w-4" /> Redigera
+                </Button>
                 <Button variant="outline" onClick={() => setSelected(null)}>Stäng</Button>
               </DialogFooter>
             </>
+          )}
+
+          {selected && editing && (
+            <form onSubmit={saveEdit} className="space-y-3">
+              <DialogHeader>
+                <DialogTitle className="font-heading">Redigera händelse</DialogTitle>
+              </DialogHeader>
+              <div>
+                <Label htmlFor="d-title">Titel *</Label>
+                <Input id="d-title" value={fTitle} onChange={e => setFTitle(e.target.value)} required />
+              </div>
+              <div>
+                <Label htmlFor="d-course">Kurs</Label>
+                <Select value={fCourse} onValueChange={setFCourse}>
+                  <SelectTrigger><SelectValue placeholder="Välj kurs" /></SelectTrigger>
+                  <SelectContent>
+                    {courses
+                      .filter(c => c.course_code && c.course_name)
+                      .map(c => (
+                        <SelectItem key={c.course_code} value={c.course_code!}>
+                          {c.course_code} - {c.course_name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="d-type">Typ</Label>
+                  <Select value={fType} onValueChange={setFType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="exam">📋 Tenta</SelectItem>
+                      <SelectItem value="assignment">📝 Uppgift</SelectItem>
+                      <SelectItem value="lab">🧪 Labb</SelectItem>
+                      <SelectItem value="seminar">💬 Seminarium</SelectItem>
+                      <SelectItem value="lecture">🎓 Föreläsning</SelectItem>
+                      <SelectItem value="other">📌 Annat</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="d-status">Status</Label>
+                  <Select value={fStatus} onValueChange={setFStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="upcoming">Kommande</SelectItem>
+                      <SelectItem value="complete">Klar</SelectItem>
+                      <SelectItem value="overdue">Försenad</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="d-date">Datum *</Label>
+                  <Input id="d-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} required />
+                </div>
+                <div>
+                  <Label htmlFor="d-time">Tid</Label>
+                  <Input id="d-time" type="time" value={fTime} onChange={e => setFTime(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="d-hp">Omfattning / HP</Label>
+                <Input
+                  id="d-hp"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  inputMode="decimal"
+                  value={fHp}
+                  onChange={e => setFHp(e.target.value)}
+                  placeholder="t.ex. 1.5"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Används för att prioritera större moment högre.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="d-desc">Beskrivning</Label>
+                <Textarea id="d-desc" value={fDesc} onChange={e => setFDesc(e.target.value)} rows={3} />
+              </div>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditing(false)} className="gap-2">
+                  <X className="h-4 w-4" /> Avbryt
+                </Button>
+                <Button type="submit" disabled={saving} className="gap-2">
+                  <Save className="h-4 w-4" /> {saving ? 'Sparar...' : 'Spara'}
+                </Button>
+              </DialogFooter>
+            </form>
           )}
         </DialogContent>
       </Dialog>
