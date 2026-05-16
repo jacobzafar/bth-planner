@@ -520,6 +520,19 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
         </CardContent>
       </Card>
 
+      {/* Riskbild & rekommendationer */}
+      <RiskOverview
+        courses={courses.map(c => ({
+          course_code: c.course_code || '',
+          course_name: c.course_name,
+          year: c.year,
+          status: c.status,
+        })).filter(c => c.course_code)}
+        programName={programName}
+        startYear={startYear ?? null}
+        compact
+      />
+
       {/* Snabbåtgärder */}
       <div className="flex gap-3">
         <Link to="/add-event" className="flex-1">
