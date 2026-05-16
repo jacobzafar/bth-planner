@@ -69,6 +69,7 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [courses, setCourses] = useState<CourseData[]>([]);
   const [subtasks, setSubtasks] = useState<LinkedSubtask[]>([]);
+  const [programName, setProgramName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<StudyEvent | null>(null);
   const [editing, setEditing] = useState(false);
