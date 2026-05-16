@@ -1,0 +1,2 @@
+ALTER TABLE public.study_events DROP CONSTRAINT study_events_event_type_check;
+ALTER TABLE public.study_events ADD CONSTRAINT study_events_event_type_check CHECK (event_type = ANY (ARRAY['assignment','lab','exam','seminar','lecture','other']));
