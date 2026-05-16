@@ -279,8 +279,9 @@ function SubtaskRow({
       </button>
       <div className={`flex-1 min-w-0 ${sub.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
         <span className="text-sm">{sub.title}</span>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {sub.due_date && <span>📅 {sub.due_date}</span>}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          <span>{SUBTASK_TYPE_LABEL[sub.type] || SUBTASK_TYPE_LABEL.assignment}</span>
+          {sub.due_date && <span>• 📅 {sub.due_date}</span>}
           {sub.hp > 0 && <span>• {sub.hp} hp</span>}
           {sub.event_id && <span>• 📌 I kalendern</span>}
         </div>
