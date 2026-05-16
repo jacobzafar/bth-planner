@@ -641,7 +641,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   };
 
   const handleAddCourse = async (course: { code: string; name: string; hp: number }) => {
-    const year = parseInt(addYear, 10);
+    const year = Number.parseInt(addYear, 10);
     const { data, error } = await supabase.from('user_courses').insert({
       user_id: userId, course_code: course.code, course_name: course.name,
       hp: course.hp, year, status: 'not_started',
