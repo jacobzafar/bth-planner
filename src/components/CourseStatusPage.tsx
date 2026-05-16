@@ -740,19 +740,47 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     }
   };
 
-  const createLinkedEvent = async (text: string, dueDate: string, course: UserCourse) => {
+  const createLinkedEvent = async (
+    text: string, dueDate: string, course: UserCourse,
+    type: SubtaskType, hp: number,
+  ) => {
     const { data, error } = await supabase.from('study_events').insert({
       user_id: userId,
       title: text,
       course_code: course.course_code,
-      event_type: 'assignment',
+      event_type: type,
       due_date: dueDate,
+      hp,
       status: 'upcoming',
     }).select('id').single();
 
     if (error || !data) return null;
     return data.id as string;
   };
+
+  // Auto-suggest marking a course as fully completed when delmoment HP reaches course HP
+  const maybeSuggestCourseCompletion = (course: UserCourse, nextSubtasks: Subtask[]) => {
+    if (course.status === 'completed') return;
+    const subs = nextSubtasks.filter(s => s.course_id === course.id);
+    if (subs.length === 0) return;
+    const completedHp = subs.filter(s => s.completed).reduce((sum, s) => sum + Number(s.hp || 0), 0);
+    if (completedHp + 0.001 < course.hp) return;
+    toast.success(`Alla delmoment-HP för ${course.course_name} är klara`, {
+      description: 'Vill du markera hela kursen som avklarad?',
+      action: {
+        label: 'Markera klar',
+        onClick: async () => {
+          const { error } = await supabase.from('user_courses')
+            .update({ status: 'completed' }).eq('id', course.id);
+          if (error) { toast.error('Kunde inte uppdatera kursstatus'); return; }
+          setCourses(prev => prev.map(c => c.id === course.id ? { ...c, status: 'completed' } : c));
+          initialStatusesRef.current.set(course.id, 'completed');
+          toast.success(`${course.course_name} markerad som helt avklarad`);
+        },
+      },
+    });
+  };
+
 
   const handleAddSubtask = async (courseId: string) => {
     const text = (newSubtaskText[courseId] || '').trim();
