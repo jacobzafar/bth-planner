@@ -509,6 +509,7 @@ interface YearSectionProps {
   newSubtaskText: Record<string, string>;
   newSubtaskDate: Record<string, string>;
   newSubtaskHp: Record<string, string>;
+  newSubtaskType: Record<string, SubtaskType>;
   blocksMap: Map<string, string[]>;
   courseNameMap: Map<string, string>;
   getPrereqStatus: (code: string) => PrereqStatus | null;
@@ -518,6 +519,7 @@ interface YearSectionProps {
   setNewSubtaskText: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setNewSubtaskDate: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setNewSubtaskHp: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setNewSubtaskType: React.Dispatch<React.SetStateAction<Record<string, SubtaskType>>>;
   onToggleSubtask: (s: Subtask) => void;
   onDeleteSubtask: (s: Subtask) => void;
   onAddSubtask: (courseId: string) => void;
@@ -526,10 +528,10 @@ interface YearSectionProps {
 function YearSection(props: YearSectionProps) {
   const {
     year, yearCourses, stats, subtasks, expandedCourses,
-    newSubtaskText, newSubtaskDate, newSubtaskHp,
+    newSubtaskText, newSubtaskDate, newSubtaskHp, newSubtaskType,
     blocksMap, courseNameMap, getPrereqStatus,
     onUpdateStatus, onDelete, onToggleExpanded,
-    setNewSubtaskText, setNewSubtaskDate, setNewSubtaskHp,
+    setNewSubtaskText, setNewSubtaskDate, setNewSubtaskHp, setNewSubtaskType,
     onToggleSubtask, onDeleteSubtask, onAddSubtask,
   } = props;
 
@@ -557,12 +559,14 @@ function YearSection(props: YearSectionProps) {
             newText={newSubtaskText[course.id] || ''}
             newDate={newSubtaskDate[course.id] || ''}
             newHp={newSubtaskHp[course.id] || ''}
+            newType={newSubtaskType[course.id] || 'assignment'}
             onUpdateStatus={onUpdateStatus}
             onDelete={onDelete}
             onToggleExpanded={onToggleExpanded}
             setNewText={(v) => setNewSubtaskText(prev => ({ ...prev, [course.id]: v }))}
             setNewDate={(v) => setNewSubtaskDate(prev => ({ ...prev, [course.id]: v }))}
             setNewHp={(v) => setNewSubtaskHp(prev => ({ ...prev, [course.id]: v }))}
+            setNewType={(v) => setNewSubtaskType(prev => ({ ...prev, [course.id]: v }))}
             onToggleSubtask={onToggleSubtask}
             onDeleteSubtask={onDeleteSubtask}
             onAddSubtask={onAddSubtask}
