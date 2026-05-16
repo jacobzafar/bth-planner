@@ -800,11 +800,74 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
             onAddCourse={handleAddCourse}
           />
         </div>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-muted-foreground mb-4">
           Markera status och hantera delmoment för varje kurs.
         </p>
 
+        {/* Display-only filters */}
+        <div className="mb-6 space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Sök kurskod eller kursnamn..."
+              value={filterSearch}
+              onChange={e => setFilterSearch(e.target.value)}
+              className="pl-10"
+            />
+            {filterSearch && (
+              <button
+                type="button"
+                onClick={() => setFilterSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Rensa sökning"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-[120px] h-9"><SelectValue placeholder="År" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla år</SelectItem>
+                {availableYears.map(y => (
+                  <SelectItem key={y} value={String(y)}>År {y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla statusar</SelectItem>
+                <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
+                <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
+                <SelectItem value="completed">✅ Helt avklarad</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant={filterUnmetOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterUnmetOnly(v => !v)}
+              className="h-9 gap-1.5"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              Endast ouppfyllda förkunskaper
+            </Button>
+            {hasActiveFilters && (
+              <Button type="button" variant="ghost" size="sm" onClick={resetFilters} className="h-9 gap-1.5">
+                <X className="h-3.5 w-3.5" /> Rensa filter
+              </Button>
+            )}
+          </div>
+        </div>
+
         <TooltipProvider>
+          {sortedYearEntries.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Inga kurser matchar filtren.
+            </p>
+          )}
           {sortedYearEntries.map(([year, yearCourses]) => (
             <YearSection
               key={year}
