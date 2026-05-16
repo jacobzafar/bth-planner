@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { AlertTriangle, CheckCircle2, Clock, Plus, Target, CalendarDays, BookOpen, TrendingUp, Pencil, Save, X, RotateCcw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Plus, Target, CalendarDays, BookOpen, TrendingUp, Pencil, Save, X, RotateCcw, Info } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, differenceInHours, isToday, isTomorrow } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
@@ -393,6 +394,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
           <CardTitle className="flex items-center gap-2 font-heading">
             <TrendingUp className="h-5 w-5 text-primary" />
             Studieframsteg
+            <InfoPopover label="Så beräknas studieframsteg">
+              Studieframsteg visar hur många HP du har klarat av i relation till programmets totala HP. Delvis avklarade moment visas separat och räknas inte som helt avklarad kurs.
+            </InfoPopover>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -468,6 +472,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
             <CardTitle className="flex items-center gap-2 font-heading">
               <Target className="h-5 w-5 text-primary" />
               Fokusera härnäst
+              <InfoPopover label="Så prioriteras fokuslistan">
+                Fokusera härnäst prioriterar kommande tentor, uppgifter och labbar baserat på deadline, omfattning/HP, kurskoppling och risk för spärrar.
+              </InfoPopover>
             </CardTitle>
             <Link to="/add-event">
               <Button size="sm" className="gap-2">
@@ -707,5 +714,24 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function InfoPopover({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className="inline-flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="start" className="w-72 text-sm">
+        {children}
+      </PopoverContent>
+    </Popover>
   );
 }

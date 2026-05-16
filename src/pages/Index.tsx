@@ -92,7 +92,7 @@ export default function Index() {
 
   // Main app
   return (
-    <AppLayout programName={pName} onLogout={handleLogout}>
+    <AppLayout programName={pName} startYear={profileData?.start_year ?? null} onLogout={handleLogout}>
       <Routes>
         <Route path="/" element={<Dashboard userId={session.user.id} totalProgramHp={totalProgramHp} startYear={profileData?.start_year ?? null} />} />
         <Route path="/kurser" element={<CourseStatusPage userId={session.user.id} programName={pName} />} />

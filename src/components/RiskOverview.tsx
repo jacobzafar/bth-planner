@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertTriangle, ShieldAlert, BookOpen, Lock, Info, CalendarRange, Sparkles } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, BookOpen, Lock, Info, Sparkles } from 'lucide-react';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
 
@@ -256,34 +256,27 @@ export default function RiskOverview({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <CardTitle className="flex items-center gap-2 font-heading">
-            <ShieldAlert className="h-5 w-5 text-warning" />
-            Riskbild & rekommendationer
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Så beräknas riskbilden"
-                  className="inline-flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Info className="h-4 w-4" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent side="bottom" align="start" className="w-72 text-sm">
-                Riskbilden baseras på ditt program, startår, kursstatus och förkunskapskrav.
-                Kurser som är delvis avklarade räknas som påbörjade och visas därför inte som
-                spärrade, även om någon förkunskap inte är helt klar.
-              </PopoverContent>
-            </Popover>
-          </CardTitle>
-          {estimate && !estimate.uncertain && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground">
-              <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
-              År {estimate.year}, termin {estimate.semester} ({estimate.semester === 1 ? 'HT' : 'VT'})
-            </span>
-          )}
-        </div>
+        
+        <CardTitle className="flex items-center gap-2 font-heading">
+          <ShieldAlert className="h-5 w-5 text-warning" />
+          Riskbild & rekommendationer
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Så beräknas riskbilden"
+                className="inline-flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Info className="h-4 w-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent side="bottom" align="start" className="w-72 text-sm">
+              Riskbilden baseras på ditt program, startår, kursstatus och förkunskapskrav.
+              Kurser som är delvis avklarade räknas som påbörjade och visas därför inte som
+              spärrade, även om någon förkunskap inte är helt klar.
+            </PopoverContent>
+          </Popover>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {noRisks ? (

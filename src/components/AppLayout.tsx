@@ -1,10 +1,12 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar, BookOpen, Settings, LogOut, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Calendar, BookOpen, Settings, LogOut, GraduationCap, CalendarRange } from 'lucide-react';
+import { estimateStudyYear } from '@/lib/studyYear';
 
 interface AppLayoutProps {
   children: ReactNode;
   programName: string;
+  startYear?: number | null;
   onLogout: () => void;
 }
 
@@ -15,24 +17,50 @@ const navItems = [
   { to: '/installningar', icon: Settings, label: 'Inställningar' },
 ];
 
-export default function AppLayout({ children, programName, onLogout }: AppLayoutProps) {
+export default function AppLayout({ children, programName, startYear, onLogout }: AppLayoutProps) {
   const location = useLocation();
+  const estimate = startYear ? estimateStudyYear(startYear) : null;
+  const showBadge = estimate && !estimate.uncertain;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-card sticky top-0 z-40">
-        <div className="container flex items-center justify-between h-14 gap-4">
-          <div className="flex items-center gap-2">
+        <div className="container flex items-center justify-between h-14 gap-3">
+          <Link to="/" className="flex items-center gap-2 shrink-0">
             <GraduationCap className="h-6 w-6 text-primary" />
-            <span className="font-heading font-bold text-lg text-foreground hidden sm:inline">BTH Studieplanerare</span>
-            <span className="font-heading font-bold text-lg text-foreground sm:hidden">BTH</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground hidden sm:inline truncate max-w-[200px]">{programName}</span>
-            <button onClick={onLogout} className="text-muted-foreground hover:text-foreground transition-colors" title="Logga ut">
+            <span className="font-heading font-bold text-lg text-foreground hidden sm:inline">BTH</span>
+          </Link>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 justify-end">
+            <span
+              className="text-xs sm:text-sm text-muted-foreground truncate min-w-0 hidden sm:inline"
+              title={programName}
+            >
+              {programName}
+            </span>
+            {showBadge && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground shrink-0">
+                <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="hidden sm:inline">
+                  År {estimate!.year}, termin {estimate!.semester} ({estimate!.semester === 1 ? 'HT' : 'VT'})
+                </span>
+                <span className="sm:hidden">
+                  År {estimate!.year} · {estimate!.semester === 1 ? 'HT' : 'VT'}
+                </span>
+              </span>
+            )}
+            <button
+              onClick={onLogout}
+              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              title="Logga ut"
+              aria-label="Logga ut"
+            >
               <LogOut className="h-4 w-4" />
             </button>
           </div>
+        </div>
+        {/* Mobile program name row */}
+        <div className="container pb-2 sm:hidden">
+          <p className="text-xs text-muted-foreground truncate" title={programName}>{programName}</p>
         </div>
       </header>
 
