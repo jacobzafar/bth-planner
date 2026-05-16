@@ -193,14 +193,21 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
     <div className="max-w-4xl mx-auto md:mt-12 animate-slide-up">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <CardTitle className="font-heading">{format(currentMonth, 'MMMM yyyy', { locale: sv })}</CardTitle>
+            <CardTitle className="font-heading text-center flex-1">{format(currentMonth, 'MMMM yyyy', { locale: sv })}</CardTitle>
             <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
               <ChevronRight className="h-4 w-4" />
             </Button>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Link to="/add-event">
+              <Button size="sm" className="gap-2">
+                <Plus className="h-4 w-4" /> Lägg till händelse
+              </Button>
+            </Link>
           </div>
         </CardHeader>
         <CardContent>
