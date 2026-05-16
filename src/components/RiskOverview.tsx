@@ -102,19 +102,34 @@ export default function RiskOverview({ courses, programName, startYear, compact 
     a => a.course.year > currentStudyYear && (a.hardUnmet.length > 0 || a.softUnmet.length > 0),
   );
 
-  // Group recommendations by prerequisite course: which prereqs unlock the most/soonest courses
-  type RecGroup = { prereq: string; affects: { code: string; year: number }[]; minYear: number };
+  // Group recommendations by prerequisite course: which prereqs unlock the most/soonest courses.
+  // The recommendation always points to the prerequisite course, never to the blocked course itself.
+  type RecGroup = {
+    prereq: string;
+    kind: 'hard' | 'soft'; // hard = ej påbörjad, soft = delvis avklarad
+    affects: { code: string; year: number }[];
+    minYear: number;
+  };
   const recsByPrereq = new Map<string, RecGroup>();
   for (const a of analyses) {
     if (a.course.status === 'completed') continue;
-    for (const p of a.hardUnmet) {
-      const g = recsByPrereq.get(p) || { prereq: p, affects: [], minYear: Infinity };
+    const unmet: { code: string; kind: 'hard' | 'soft' }[] = [
+      ...a.hardUnmet.map(p => ({ code: p, kind: 'hard' as const })),
+      ...a.softUnmet.map(p => ({ code: p, kind: 'soft' as const })),
+    ];
+    for (const u of unmet) {
+      const existing = recsByPrereq.get(u.code);
+      const g: RecGroup = existing || { prereq: u.code, kind: u.kind, affects: [], minYear: Infinity };
+      // Hard kind wins over soft if the same prereq is referenced from multiple courses
+      if (u.kind === 'hard') g.kind = 'hard';
       g.affects.push({ code: a.course.course_code, year: a.course.year });
       if (a.course.year < g.minYear) g.minYear = a.course.year;
-      recsByPrereq.set(p, g);
+      recsByPrereq.set(u.code, g);
     }
   }
   const sortedRecs = Array.from(recsByPrereq.values()).sort((a, b) => {
+    // Hard (ej påbörjad) prereqs come before soft (delvis avklarad)
+    if (a.kind !== b.kind) return a.kind === 'hard' ? -1 : 1;
     if (a.minYear !== b.minYear) return a.minYear - b.minYear;
     return b.affects.length - a.affects.length;
   });
@@ -124,9 +139,10 @@ export default function RiskOverview({ courses, programName, startYear, compact 
     const focusLabel = fmtCourse(g.prereq, nameOf(g.prereq));
     const affectsShown = g.affects.slice(0, 3).map(a => fmtCourse(a.code, nameOf(a.code))).join(', ');
     const more = g.affects.length > 3 ? ` +${g.affects.length - 3}` : '';
+    const verb = g.kind === 'hard' ? 'Fokusera på' : 'Slutför';
     return {
       key: `rec-${g.prereq}`,
-      text: `Fokusera på ${focusLabel}`,
+      text: `${verb} ${focusLabel}`,
       helper: `Behövs för ${affectsShown}${more}`,
     };
   });
