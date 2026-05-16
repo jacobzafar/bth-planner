@@ -100,6 +100,7 @@ export type Database = {
           due_date: string
           due_time: string | null
           event_type: string
+          hp: number | null
           id: string
           status: string
           title: string
@@ -112,6 +113,7 @@ export type Database = {
           due_date: string
           due_time?: string | null
           event_type?: string
+          hp?: number | null
           id?: string
           status?: string
           title: string
@@ -124,6 +126,7 @@ export type Database = {
           due_date?: string
           due_time?: string | null
           event_type?: string
+          hp?: number | null
           id?: string
           status?: string
           title?: string
