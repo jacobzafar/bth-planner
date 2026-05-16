@@ -788,17 +788,18 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
     const dueDate = newSubtaskDate[courseId] || null;
     const hp = Number.parseFloat(newSubtaskHp[courseId] || '0') || 0;
+    const type: SubtaskType = newSubtaskType[courseId] || 'assignment';
     const course = courses.find(c => c.id === courseId);
 
     let eventId: string | null = null;
     if (dueDate && course) {
-      eventId = await createLinkedEvent(text, dueDate, course);
+      eventId = await createLinkedEvent(text, dueDate, course, type, hp);
     }
 
     const { data, error } = await supabase.from('course_subtasks').insert({
       user_id: userId, course_id: courseId, title: text,
-      due_date: dueDate, hp, event_id: eventId,
-    }).select('id, course_id, title, completed, due_date, hp, event_id').single();
+      due_date: dueDate, hp, event_id: eventId, type,
+    }).select('id, course_id, title, completed, due_date, hp, event_id, type').single();
 
     if (error) {
       toast.error('Kunde inte lägga till delmoment');
@@ -809,6 +810,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       setNewSubtaskText(prev => ({ ...prev, [courseId]: '' }));
       setNewSubtaskDate(prev => ({ ...prev, [courseId]: '' }));
       setNewSubtaskHp(prev => ({ ...prev, [courseId]: '' }));
+      setNewSubtaskType(prev => ({ ...prev, [courseId]: 'assignment' }));
       toast.success(dueDate ? 'Delmoment tillagt och kalenderhändelse skapad!' : 'Delmoment tillagt!');
     }
   };
@@ -819,11 +821,16 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       .update({ completed: newCompleted }).eq('id', subtask.id);
 
     if (error) return;
-    setSubtasks(prev => prev.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s));
+    const nextSubtasks = subtasks.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s);
+    setSubtasks(nextSubtasks);
     if (subtask.event_id) {
       await supabase.from('study_events')
         .update({ status: newCompleted ? 'complete' : 'upcoming' })
         .eq('id', subtask.event_id);
+    }
+    if (newCompleted) {
+      const course = courses.find(c => c.id === subtask.course_id);
+      if (course) maybeSuggestCourseCompletion(course, nextSubtasks);
     }
   };
 
