@@ -289,62 +289,78 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     lecture: 'bg-muted text-foreground',
   };
 
-  const getEventHp = (event: StudyEvent): number => {
-    if (event.hp && event.hp > 0) return Number(event.hp);
-    const linked = subtasks.find(s => s.event_id === event.id);
-    return linked ? Number(linked.hp) : 0;
-  };
+  // alias kept for backward compat in JSX
+  const getEventHp = getHpForEvent;
 
   const hoursUntil = (event: StudyEvent) =>
     differenceInHours(new Date(`${event.due_date}T${event.due_time || '23:59'}`), now);
 
-  // Short, single-line reason for the card
+  // Build short label for blocking, e.g. "Spärrar MA1423" or "Spärrar MA1423 som kommer snart"
+  const getBlockingLabel = (courseCode: string | null): string | null => {
+    if (!courseCode) return null;
+    const blocked = blockingMap.get(courseCode);
+    if (!blocked || blocked.length === 0) return null;
+    const first = blocked[0];
+    // "soon" if blocked course belongs to next year/term relative to user's current courses
+    const userCourse = courses.find(c => c.course_code === courseCode);
+    const soon = userCourse ? first.year >= userCourse.year : false;
+    const more = blocked.length > 1 ? ` (+${blocked.length - 1} till)` : '';
+    return soon
+      ? `Spärrar ${first.code} som kommer snart${more}`
+      : `Spärrar ${first.code}${more}`;
+  };
+
+  // Short, single-line reason for the card — matches ranking
   const getShortReason = (event: StudyEvent): string | null => {
     const h = hoursUntil(event);
     const hp = getEventHp(event);
-    const typeName = TYPE_LABEL[event.event_type];
     const course = event.course_code;
+    const blocking = getBlockingLabel(course);
 
-    if (h < 0 && course) return `Försenad – ${typeName?.toLowerCase() || 'händelse'} i ${course}`;
-    if (h < 0) return 'Försenad deadline';
+    if (h < 0) return course ? `Försenad deadline i ${course}` : 'Försenad deadline';
 
-    if (event.event_type === 'exam' && h < 168 && course) return `Deadline snart – tenta i ${course}`;
-    if (event.event_type === 'exam' && course) return `Tenta i ${course}`;
-
-    if (hp >= 3) return course ? `Hög omfattning: ${hp} HP i ${course}` : `Hög omfattning: ${hp} HP`;
-
-    if (event.event_type === 'lab' && h < 168 && course) return `Labb denna vecka i ${course}`;
-
-    if (h < 24 && course) return `Deadline snart i ${course}`;
+    if (event.event_type === 'exam') {
+      if (h < 168) return course ? `Tenta snart i ${course}` : 'Tenta snart';
+      return course ? `Tenta i ${course}` : 'Tenta';
+    }
+    if (blocking) return blocking;
+    if (event.event_type === 'assignment') {
+      if (h < 72) return course ? `Uppgift med deadline snart i ${course}` : 'Uppgift med deadline snart';
+      if (hp >= 3) return course ? `Större uppgift (${hp} HP) i ${course}` : `Större uppgift (${hp} HP)`;
+      return course ? `Uppgift i ${course}` : 'Uppgift';
+    }
+    if (event.event_type === 'lab') {
+      if (h < 72) return course ? `Labb snart i ${course}` : 'Labb snart';
+      return course ? `Labb i ${course}` : 'Labb';
+    }
+    if (hp > 0) return course ? `${hp} HP i ${course}` : `${hp} HP`;
     if (h < 24) return 'Deadline inom 24h';
-    if (h < 72 && course) return `Deadline snart i ${course}`;
-    if (h < 72) return 'Deadline inom 3 dagar';
-    if (h < 168 && typeName && course) return `${typeName} denna vecka i ${course}`;
-    if (h < 168) return 'Deadline denna vecka';
-
-    if (course && typeName) return `${typeName} i ${course}`;
-    return null;
+    if (h < 168) return course ? `Deadline denna vecka i ${course}` : 'Deadline denna vecka';
+    return course ? `Kommande i ${course}` : null;
   };
 
-  // Detailed bullet reasons for modal — short, natural Swedish
+  // Detailed bullet reasons for modal — match actual ranking factors
   const getDetailedReasons = (event: StudyEvent): string[] => {
     const reasons: string[] = [];
     const h = hoursUntil(event);
     const hp = getEventHp(event);
     const linkedSubtask = subtasks.find(s => s.event_id === event.id);
+    const blocking = getBlockingLabel(event.course_code);
 
+    // Deadline
     if (h < 0) reasons.push('Deadline har passerat');
     else if (h < 24) reasons.push('Deadline är snart – mindre än ett dygn kvar');
     else if (h < 72) reasons.push('Deadline är snart – inom 3 dagar');
     else if (h < 168) reasons.push('Deadline inom en vecka');
 
-    if (event.event_type === 'exam') reasons.push('Tenta prioriteras högt');
-    else if (event.event_type === 'assignment' && hp >= 3) reasons.push('Uppgift med hög omfattning');
-    else if (event.event_type === 'assignment') reasons.push('Uppgift med deadline');
+    // Type ranking explanation
+    if (event.event_type === 'exam') reasons.push('Tenta prioriteras högst vid samma deadline');
+    else if (event.event_type === 'assignment') reasons.push('Uppgifter rankas över labbar vid samma deadline');
     else if (event.event_type === 'lab') reasons.push('Labb kräver förberedelse');
 
     if (event.course_code) reasons.push(`Kopplad till kursen ${event.course_code}`);
-    if (hp > 0) reasons.push(`${hp} HP gör momentet viktigare`);
+    if (hp > 0) reasons.push(`${hp} HP gör momentet större`);
+    if (blocking) reasons.push(blocking);
     if (linkedSubtask && !linkedSubtask.completed) reasons.push('Kopplad till ett kursmoment som inte är avklarat');
     if (event.status && event.status !== 'complete') reasons.push('Inte avklarad ännu');
     return reasons;
