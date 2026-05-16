@@ -929,10 +929,21 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
           ))}
         </TooltipProvider>
 
-        <Button size="lg" onClick={handleSave} disabled={saving} className="w-full gap-2 text-base mt-4">
-          <Save className="h-4 w-4" /> {saving ? 'Sparar...' : 'Spara kursstatus'}
-        </Button>
       </main>
+
+      {isDirty && (
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-30 bg-card border-t shadow-lg">
+          <div className="container max-w-2xl py-3 flex items-center gap-3 flex-wrap">
+            <p className="text-sm text-foreground flex-1 min-w-[160px]">Du har osparade ändringar</p>
+            <Button variant="outline" size="sm" onClick={resetStatusChanges} disabled={saving} className="gap-1.5">
+              <RotateCcw className="h-4 w-4" /> Ångra
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Save className="h-4 w-4" /> {saving ? 'Sparar...' : 'Spara kursstatus'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <AlertDialog open={!!pendingCourseDelete} onOpenChange={(o) => !o && setPendingCourseDelete(null)}>
         <AlertDialogContent>
