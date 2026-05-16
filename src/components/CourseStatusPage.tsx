@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
-import { GraduationCap, Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { GraduationCap, Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
