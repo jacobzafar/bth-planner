@@ -60,7 +60,7 @@ export default function Index() {
     await supabase.auth.signOut();
   };
 
-  if (loading) {
+  if (loading || (session && setupComplete === null)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Laddar...</p>
@@ -74,7 +74,7 @@ export default function Index() {
   }
 
   // Logged in but hasn't selected program
-  if (!setupComplete) {
+  if (setupComplete === false) {
     return (
       <ProgramSetupPage
         userId={session.user.id}
