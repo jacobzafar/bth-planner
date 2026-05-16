@@ -472,6 +472,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
             <CardTitle className="flex items-center gap-2 font-heading">
               <Target className="h-5 w-5 text-primary" />
               Fokusera härnäst
+              <InfoPopover label="Så prioriteras fokuslistan">
+                Fokusera härnäst prioriterar kommande tentor, uppgifter och labbar baserat på deadline, omfattning/HP, kurskoppling och risk för spärrar.
+              </InfoPopover>
             </CardTitle>
             <Link to="/add-event">
               <Button size="sm" className="gap-2">
