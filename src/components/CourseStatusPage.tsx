@@ -823,7 +823,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   return (
     <div className="min-h-screen bg-background">
 
-      <main className="container max-w-2xl py-4 animate-slide-up">
+      <main className={`container max-w-2xl pt-10 pb-4 animate-slide-up ${isDirty ? 'pb-32 md:pb-24' : ''}`}>
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-heading text-2xl font-bold text-foreground">Dina kurser</h2>
           <AddCourseDialog
