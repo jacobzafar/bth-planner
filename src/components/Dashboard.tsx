@@ -40,6 +40,7 @@ interface StudyEvent {
 }
 
 interface CourseData {
+  id: string;
   status: string;
   hp: number;
   year: number;
@@ -49,6 +50,7 @@ interface CourseData {
 
 interface LinkedSubtask {
   id: string;
+  course_id: string;
   event_id: string | null;
   hp: number;
   completed: boolean;
