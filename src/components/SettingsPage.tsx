@@ -197,21 +197,11 @@ export default function SettingsPage({ userId, email, programName, startYear, on
           <Button variant="outline" onClick={onLogout} className="w-full gap-2 justify-start">
             <LogOut className="h-4 w-4" /> Logga ut
           </Button>
-        </CardContent>
-      </Card>
-
-      {/* Danger zone */}
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="font-heading text-base flex items-center gap-2 text-destructive">
-            <Trash2 className="h-4 w-4" /> Farozon
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            Permanent borttagning av kontot. Detta går inte att ångra.
-          </p>
-          <Button variant="destructive" onClick={() => { setDeleteConfirm(''); setDeleteOpen(true); }} className="w-full gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { setDeleteConfirm(''); setDeleteOpen(true); }}
+            className="w-full gap-2 justify-start border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
             <Trash2 className="h-4 w-4" /> Radera konto
           </Button>
         </CardContent>
