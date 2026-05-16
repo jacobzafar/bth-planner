@@ -5,8 +5,10 @@ const STORAGE_KEY = 'bth-study-planner';
 function generatePlanningId(): string {
   const year = new Date().getFullYear();
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const randomValues = new Uint32Array(6);
+  crypto.getRandomValues(randomValues);
   let suffix = '';
-  for (let i = 0; i < 6; i++) suffix += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 6; i++) suffix += chars[randomValues[i] % chars.length];
   return `BTH-${year}-${suffix}`;
 }
 
