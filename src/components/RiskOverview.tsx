@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, BookOpen, Flame } from 'lucide-react';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
 
@@ -16,7 +16,6 @@ interface RiskOverviewProps {
   courses: CourseRow[];
   programName: string | null;
   startYear: number | null;
-  /** Compact mode shows fewer items + Visa mer. */
   compact?: boolean;
 }
 
@@ -68,6 +67,7 @@ export default function RiskOverview({ courses, programName, startYear, compact 
     })
     .filter(x => x.unmet.length > 0);
 
+  // High risk: courses not done that block other not-done courses
   const blockingNotDone = courses
     .filter(c => c.status !== 'completed')
     .map(c => {
@@ -76,58 +76,53 @@ export default function RiskOverview({ courses, programName, startYear, compact 
     })
     .filter(x => x.blocks.length > 0);
 
-  // Build a unified list of items (summary lines + per-course items)
-  type Item = { key: string; text: React.ReactNode; priority: number };
-  const items: Item[] = [];
-
-  if (overdueCourses.length > 0) {
-    items.push({
-      key: 'sum-overdue',
-      priority: 0,
-      text: <>Du har <span className="font-semibold text-foreground">{overdueCourses.length}</span> kurser från tidigare/nuvarande år som inte är avklarade.</>,
-    });
-  }
-  if (unmetPrereqCourses.length > 0) {
-    items.push({
-      key: 'sum-prereq',
-      priority: 1,
-      text: <><span className="font-semibold text-foreground">{unmetPrereqCourses.length}</span> kommande kurser har ej uppfyllda förkunskaper.</>,
-    });
-  }
-
-  blockingNotDone.slice(0, 8).forEach(({ course, blocks }) => {
-    items.push({
-      key: `block-${course.course_code}`,
-      priority: 2,
-      text: <><span className="font-mono text-foreground">{course.course_code}</span> är inte avklarad och kan påverka kommande kurser ({blocks.slice(0, 3).map(b => (
-        <span key={b} className="font-mono text-foreground">{b}</span>
-      )).reduce<React.ReactNode[]>((acc, el, i) => { if (i > 0) acc.push(', '); acc.push(el); return acc; }, [])}{blocks.length > 3 ? ` +${blocks.length - 3}` : ''}).</>,
+  // Top priorities for "Viktigast just nu":
+  // 1) High risk (blocking) — phrase as "X spärrar Y"
+  // 2) Upcoming with unmet prereqs — phrase as "X kräver Y"
+  type Top = { key: string; text: string; helper: string };
+  const tops: Top[] = [];
+  blockingNotDone.slice(0, 5).forEach(({ course, blocks }) => {
+    tops.push({
+      key: `t-block-${course.course_code}`,
+      text: `${course.course_code} spärrar ${blocks[0]}${blocks.length > 1 ? ` +${blocks.length - 1}` : ''}`,
+      helper: 'Prioritera moment i denna kurs',
     });
   });
-
-  unmetPrereqCourses.slice(0, 8).forEach(({ course, unmet }) => {
-    items.push({
-      key: `prereq-${course.course_code}`,
-      priority: 3,
-      text: <><span className="font-mono text-foreground">{course.course_code}</span> kräver {unmet.map(u => (
-        <span key={u} className="font-mono text-foreground">{u}</span>
-      )).reduce<React.ReactNode[]>((acc, el, i) => { if (i > 0) acc.push(', '); acc.push(el); return acc; }, [])}.</>,
+  unmetPrereqCourses.slice(0, 5).forEach(({ course, unmet }) => {
+    tops.push({
+      key: `t-prereq-${course.course_code}`,
+      text: `${course.course_code} kräver ${unmet[0]}${unmet.length > 1 ? ` +${unmet.length - 1}` : ''}`,
+      helper: 'Kommande kurs har ej uppfyllda förkunskaper',
     });
   });
+  const topItems = tops.slice(0, 3);
 
-  if (blockingNotDone.length > 0) {
-    items.push({
-      key: 'tip-block',
-      priority: 4,
-      text: <span className="text-muted-foreground">Tips: Prioritera moment i kurser som spärrar kommande kurser.</span>,
-    });
-  }
+  // Recommendation line based on top blocking courses
+  const recCodes = blockingNotDone.slice(0, 2).map(b => b.course.course_code);
+  const recommendation = recCodes.length > 0
+    ? `Rekommendation: Börja med ${recCodes.join(' och ')} eftersom de påverkar kommande kurser.`
+    : null;
 
-  items.sort((a, b) => a.priority - b.priority);
+  // Grouped expanded lists
+  const highRiskList = blockingNotDone.map(({ course, blocks }) => ({
+    key: `h-${course.course_code}`,
+    text: `${course.course_code} spärrar ${blocks.slice(0, 3).join(', ')}${blocks.length > 3 ? ` +${blocks.length - 3}` : ''}`,
+  }));
+  const prereqList = unmetPrereqCourses.map(({ course, unmet }) => ({
+    key: `p-${course.course_code}`,
+    text: `${course.course_code} kräver ${unmet.slice(0, 3).join(', ')}${unmet.length > 3 ? ` +${unmet.length - 3}` : ''}`,
+  }));
+  // Other risks: overdue not in highRisk and not in prereqList
+  const highRiskCodes = new Set(blockingNotDone.map(b => b.course.course_code));
+  const prereqCodes = new Set(unmetPrereqCourses.map(p => p.course.course_code));
+  const otherList = overdueCourses
+    .filter(c => !highRiskCodes.has(c.course_code) && !prereqCodes.has(c.course_code))
+    .map(c => ({
+      key: `o-${c.course_code}`,
+      text: `${c.course_code} från år ${c.year} är inte avklarad`,
+    }));
 
-  const visibleLimit = compact && !expanded ? 4 : items.length;
-  const visibleItems = items.slice(0, visibleLimit);
-  const hasMore = items.length > visibleLimit;
+  const noRisks = overdueCourses.length === 0 && unmetPrereqCourses.length === 0 && blockingNotDone.length === 0;
 
   return (
     <Card>
@@ -137,32 +132,117 @@ export default function RiskOverview({ courses, programName, startYear, compact 
           Riskbild & rekommendationer
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {items.length === 0 ? (
+      <CardContent className="space-y-4">
+        {noRisks ? (
           <p className="text-sm text-muted-foreground">Inga risker upptäckta just nu. Bra jobbat!</p>
         ) : (
           <>
-            <ul className="space-y-2">
-              {visibleItems.map(item => (
-                <li key={item.key} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                  <span>{item.text}</span>
-                </li>
-              ))}
-            </ul>
-            {compact && (hasMore || expanded) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-1 h-auto px-2 py-1 text-xs"
-                onClick={() => setExpanded(e => !e)}
-              >
-                {expanded ? 'Visa färre' : `Visa mer (${items.length - visibleLimit})`}
-              </Button>
+            {/* Summary metric cards */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <MetricCard
+                icon={<BookOpen className="h-4 w-4 text-muted-foreground" />}
+                label="Ej avklarade kurser"
+                value={overdueCourses.length}
+              />
+              <MetricCard
+                icon={<AlertTriangle className="h-4 w-4 text-warning" />}
+                label="Saknade förkunskaper"
+                value={unmetPrereqCourses.length}
+                emphasize={unmetPrereqCourses.length > 0}
+              />
+              <MetricCard
+                icon={<Flame className="h-4 w-4 text-destructive" />}
+                label="Hög risk"
+                value={blockingNotDone.length}
+                emphasize={blockingNotDone.length > 0}
+              />
+            </div>
+
+            {/* Viktigast just nu */}
+            {topItems.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Viktigast just nu
+                </p>
+                <ul className="space-y-2">
+                  {topItems.map(t => (
+                    <li key={t.key} className="flex items-start gap-2">
+                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm text-foreground font-medium">{t.text}</p>
+                        <p className="text-xs text-muted-foreground">{t.helper}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {recommendation && (
+              <p className="text-xs text-muted-foreground border-l-2 border-warning/60 pl-2">
+                {recommendation}
+              </p>
+            )}
+
+            {/* Expandable grouped details */}
+            {compact && (highRiskList.length + prereqList.length + otherList.length > topItems.length) && (
+              <>
+                {expanded && (
+                  <div className="space-y-3 pt-1">
+                    {highRiskList.length > 0 && (
+                      <Group title="Hög risk" items={highRiskList} dotClass="bg-destructive" />
+                    )}
+                    {prereqList.length > 0 && (
+                      <Group title="Kommande kurser med saknade förkunskaper" items={prereqList} dotClass="bg-warning" />
+                    )}
+                    {otherList.length > 0 && (
+                      <Group title="Övriga risker" items={otherList} dotClass="bg-muted-foreground" />
+                    )}
+                  </div>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto px-2 py-1 text-xs"
+                  onClick={() => setExpanded(e => !e)}
+                >
+                  {expanded ? 'Visa färre' : 'Visa mer'}
+                </Button>
+              </>
             )}
           </>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function MetricCard({
+  icon, label, value, emphasize,
+}: { icon: React.ReactNode; label: string; value: number; emphasize?: boolean }) {
+  return (
+    <div className={`rounded-lg border p-2.5 sm:p-3 ${emphasize ? 'border-warning/40 bg-warning/5' : 'border-border bg-muted/30'}`}>
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <p className="text-2xl font-heading font-bold text-foreground leading-none">{value}</p>
+    </div>
+  );
+}
+
+function Group({ title, items, dotClass }: { title: string; items: { key: string; text: string }[]; dotClass: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{title}</p>
+      <ul className="space-y-1.5">
+        {items.map(i => (
+          <li key={i.key} className="flex items-start gap-2 text-sm text-foreground">
+            <span className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${dotClass}`} />
+            <span>{i.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
