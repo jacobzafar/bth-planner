@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, ShieldAlert, BookOpen, Lock } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AlertTriangle, ShieldAlert, BookOpen, Lock, Info, CalendarRange } from 'lucide-react';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
 
@@ -35,24 +36,18 @@ export default function RiskOverview({ courses, programName, startYear, compact 
     [programName],
   );
 
-  const { prereqMap, blocksMap, templateNameMap } = useMemo(() => {
+  const { prereqMap, templateNameMap } = useMemo(() => {
     const prereq = new Map<string, string[]>();
-    const blocks = new Map<string, string[]>();
     const names = new Map<string, string>();
     if (programTemplate) {
       for (const c of programTemplate.courses) {
         names.set(c.code, c.name);
         if (c.prerequisites && c.prerequisites.length) {
           prereq.set(c.code, c.prerequisites);
-          for (const p of c.prerequisites) {
-            const arr = blocks.get(p) || [];
-            arr.push(c.code);
-            blocks.set(p, arr);
-          }
         }
       }
     }
-    return { prereqMap: prereq, blocksMap: blocks, templateNameMap: names };
+    return { prereqMap: prereq, templateNameMap: names };
   }, [programTemplate]);
 
   const courseByCode = useMemo(() => {
@@ -64,16 +59,16 @@ export default function RiskOverview({ courses, programName, startYear, compact 
   const nameOf = (code: string) =>
     courseByCode.get(code)?.course_name || templateNameMap.get(code);
 
+  const yearOf = (code: string) =>
+    courseByCode.get(code)?.year ?? programTemplate?.courses.find(c => c.code === code)?.year;
+
   const estimate = startYear ? estimateStudyYear(startYear) : null;
   const currentStudyYear = estimate?.year ?? 1;
 
-  // "Ej avklarade kurser" – courses from previous/current years not completed
   const overdueCourses = courses.filter(
     c => c.year <= currentStudyYear && c.status !== 'completed',
   );
 
-  // Helper: classify a prereq's fulfillment
-  // completed → met; partly → soft (started but not done); not_started/missing → hard block
   type PrereqKind = 'met' | 'soft' | 'hard';
   const prereqKind = (code: string): PrereqKind => {
     const s = courseByCode.get(code)?.status;
@@ -84,8 +79,8 @@ export default function RiskOverview({ courses, programName, startYear, compact 
 
   type CourseAnalysis = {
     course: CourseRow;
-    hardUnmet: string[]; // prereqs that are not_started/missing
-    softUnmet: string[]; // prereqs that are partly
+    hardUnmet: string[];
+    softUnmet: string[];
   };
 
   const analyses: CourseAnalysis[] = courses
@@ -102,74 +97,57 @@ export default function RiskOverview({ courses, programName, startYear, compact 
       return { course: c, hardUnmet, softUnmet };
     });
 
-  // "Spärrade kurser" – courses with at least one hard-unmet prereq (cannot fully start)
   const blockedCourses = analyses.filter(a => a.hardUnmet.length > 0);
-
-  // "Saknade förkunskaper" – upcoming courses (future years) with any unmet prereq (hard or soft)
   const upcomingMissing = analyses.filter(
     a => a.course.year > currentStudyYear && (a.hardUnmet.length > 0 || a.softUnmet.length > 0),
   );
 
-  // Priority score for blocked items (lower year = higher priority)
-  const priorityScore = (a: CourseAnalysis) => {
-    const diff = a.course.year - currentStudyYear; // negative = overdue
-    // Heavy weight for overdue/current, plus hard count
-    const base = diff <= 0 ? 0 : diff; // 0 for past/current, increases for future
-    return base * 10 - a.hardUnmet.length;
-  };
-
-  const sortedBlocked = [...blockedCourses].sort((a, b) => priorityScore(a) - priorityScore(b));
-
-  // Build top recommendations (2-3 actionable items)
-  type Rec = { key: string; text: string; helper: string };
-  const recs: Rec[] = [];
-
-  for (const a of sortedBlocked) {
-    if (recs.length >= 3) break;
-    const blocked = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
-    const firstPrereq = a.hardUnmet[0];
-    const prereqLabel = fmtCourse(firstPrereq, nameOf(firstPrereq));
-    const more = a.hardUnmet.length > 1 ? ` (+${a.hardUnmet.length - 1})` : '';
-    const isSoon = a.course.year <= currentStudyYear;
-    recs.push({
-      key: `rec-block-${a.course.course_code}`,
-      text: `Börja med ${prereqLabel}${more} eftersom den krävs för ${blocked}`,
-      helper: isSoon
-        ? 'Den här spärren påverkar en kurs du borde läsa nu'
-        : 'Prioritera att nå förkunskapskraven',
-    });
-  }
-
-  if (recs.length < 3) {
-    const sortedUpcoming = [...upcomingMissing].sort((a, b) => a.course.year - b.course.year);
-    for (const a of sortedUpcoming) {
-      if (recs.length >= 3) break;
-      if (recs.some(r => r.key.endsWith(a.course.course_code))) continue;
-      const courseLabel = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
-      const missing = [...a.hardUnmet, ...a.softUnmet];
-      const first = missing[0];
-      const more = missing.length > 1 ? ` (+${missing.length - 1})` : '';
-      recs.push({
-        key: `rec-up-${a.course.course_code}`,
-        text: `${courseLabel} kräver ${fmtCourse(first, nameOf(first))}${more}`,
-        helper: 'Kommande kurs med saknade förkunskaper',
-      });
+  // Group recommendations by prerequisite course: which prereqs unlock the most/soonest courses
+  type RecGroup = { prereq: string; affects: { code: string; year: number }[]; minYear: number };
+  const recsByPrereq = new Map<string, RecGroup>();
+  for (const a of analyses) {
+    if (a.course.status === 'completed') continue;
+    for (const p of a.hardUnmet) {
+      const g = recsByPrereq.get(p) || { prereq: p, affects: [], minYear: Infinity };
+      g.affects.push({ code: a.course.course_code, year: a.course.year });
+      if (a.course.year < g.minYear) g.minYear = a.course.year;
+      recsByPrereq.set(p, g);
     }
   }
+  const sortedRecs = Array.from(recsByPrereq.values()).sort((a, b) => {
+    if (a.minYear !== b.minYear) return a.minYear - b.minYear;
+    return b.affects.length - a.affects.length;
+  });
 
-  // Grouped expanded lists
+  type Rec = { key: string; text: string; helper: string };
+  const recs: Rec[] = sortedRecs.slice(0, 3).map(g => {
+    const focusLabel = fmtCourse(g.prereq, nameOf(g.prereq));
+    const affectsShown = g.affects.slice(0, 3).map(a => fmtCourse(a.code, nameOf(a.code))).join(', ');
+    const more = g.affects.length > 3 ? ` +${g.affects.length - 3}` : '';
+    return {
+      key: `rec-${g.prereq}`,
+      text: `Fokusera på ${focusLabel}`,
+      helper: `Behövs för ${affectsShown}${more}`,
+    };
+  });
+
+  const sortedBlocked = [...blockedCourses].sort(
+    (a, b) => a.course.year - b.course.year || b.hardUnmet.length - a.hardUnmet.length,
+  );
+
   const blockedList = sortedBlocked.map(a => {
     const blocked = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
     const items = a.hardUnmet.slice(0, 3).map(p => fmtCourse(p, nameOf(p))).join(', ');
     const more = a.hardUnmet.length > 3 ? ` +${a.hardUnmet.length - 3}` : '';
     return {
       key: `b-${a.course.course_code}`,
-      text: `${blocked} – kräver ${items}${more}`,
+      text: `${blocked} (år ${a.course.year}) – kräver ${items}${more}`,
     };
   });
 
   const upcomingList = upcomingMissing
     .filter(a => !blockedCourses.some(b => b.course.course_code === a.course.course_code))
+    .sort((a, b) => a.course.year - b.course.year)
     .map(a => {
       const courseLabel = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
       const missing = [...a.hardUnmet, ...a.softUnmet];
@@ -177,7 +155,7 @@ export default function RiskOverview({ courses, programName, startYear, compact 
       const more = missing.length > 3 ? ` +${missing.length - 3}` : '';
       return {
         key: `u-${a.course.course_code}`,
-        text: `${courseLabel} – kräver ${items}${more}`,
+        text: `${courseLabel} – år ${a.course.year} – kräver ${items}${more}`,
       };
     });
 
@@ -200,17 +178,40 @@ export default function RiskOverview({ courses, programName, startYear, compact 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 font-heading">
-          <ShieldAlert className="h-5 w-5 text-warning" />
-          Riskbild & rekommendationer
-        </CardTitle>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <CardTitle className="flex items-center gap-2 font-heading">
+            <ShieldAlert className="h-5 w-5 text-warning" />
+            Riskbild & rekommendationer
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Så beräknas riskbilden"
+                  className="inline-flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" align="start" className="w-72 text-sm">
+                Riskbilden baseras på ditt program, startår, kursstatus och förkunskapskrav.
+                Kurser som är delvis avklarade räknas som påbörjade och visas därför som lägre
+                risk än kurser som inte är påbörjade.
+              </PopoverContent>
+            </Popover>
+          </CardTitle>
+          {estimate && !estimate.uncertain && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground">
+              <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
+              År {estimate.year}, termin {estimate.semester} ({estimate.semester === 1 ? 'HT' : 'VT'})
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {noRisks ? (
           <p className="text-sm text-muted-foreground">Inga risker upptäckta just nu. Bra jobbat!</p>
         ) : (
           <>
-            {/* Summary metric cards */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <MetricCard
                 icon={<BookOpen className="h-4 w-4 text-muted-foreground" />}
@@ -231,7 +232,6 @@ export default function RiskOverview({ courses, programName, startYear, compact 
               />
             </div>
 
-            {/* Top recommendations */}
             {recs.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
@@ -251,7 +251,6 @@ export default function RiskOverview({ courses, programName, startYear, compact 
               </div>
             )}
 
-            {/* Expandable grouped details */}
             {compact && totalDetails > recs.length && (
               <>
                 {expanded && (
