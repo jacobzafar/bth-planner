@@ -253,6 +253,9 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
                 now
               );
               const urgent = hoursLeft < 24 && hoursLeft >= 0;
+              const linked = subtasks.find(s => s.event_id === event.id);
+              const linkedHp = linked ? linked.hp : null;
+              const reasons = getReasons(event, hoursLeft, linkedHp, !!linked);
               return (
                 <div
                   key={event.id}
@@ -270,17 +273,19 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
                       <Badge className={`${typeColor[event.event_type] || 'bg-muted text-muted-foreground'} text-xs`}>
                         {typeLabel[event.event_type] || event.event_type}
                       </Badge>
-                      {(() => {
-                        const linked = subtasks.find(s => s.event_id === event.id);
-                        return linked && linked.hp > 0 ? (
-                          <Badge variant="outline" className="text-xs">{linked.hp} HP</Badge>
-                        ) : null;
-                      })()}
+                      {linkedHp && linkedHp > 0 ? (
+                        <Badge variant="outline" className="text-xs">{linkedHp} HP</Badge>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>📅 {formatDueLabel(event.due_date, event.due_time)}</span>
                       {event.course_code && <span>• {event.course_code}</span>}
                     </div>
+                    {reasons.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1.5 italic">
+                        Prioriterad: {reasons.join(' • ')}
+                      </p>
+                    )}
                   </div>
                   <Button
                     variant="outline"
