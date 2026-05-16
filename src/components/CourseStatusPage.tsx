@@ -771,47 +771,31 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
         </p>
 
         <TooltipProvider>
-          {sortedYearEntries.map(([year, yearCourses]) => {
-            const stats = yearHpStats.find(s => s.year === Number(year));
-            const yearProgress = stats && stats.total > 0
-              ? Math.round((stats.completed / stats.total) * 100)
-              : 0;
-
-            return (
-              <div key={year} className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-heading font-semibold text-foreground">År {year}</h3>
-                  <span className="text-xs text-muted-foreground">{stats?.completed}/{stats?.total} HP ({yearProgress}%)</span>
-                </div>
-                <Progress value={yearProgress} className="h-1.5 mb-3" />
-                <div className="space-y-2">
-                  {yearCourses.map(course => (
-                    <CourseCard
-                      key={course.id}
-                      course={course}
-                      prereqStatus={getPrereqStatus(course.course_code)}
-                      blocks={blocksMap.get(course.course_code)}
-                      courseNameMap={courseNameMap}
-                      courseSubtasks={subtasks.filter(s => s.course_id === course.id)}
-                      isExpanded={expandedCourses.has(course.id)}
-                      newText={newSubtaskText[course.id] || ''}
-                      newDate={newSubtaskDate[course.id] || ''}
-                      newHp={newSubtaskHp[course.id] || ''}
-                      onUpdateStatus={updateStatus}
-                      onDelete={handleDelete}
-                      onToggleExpanded={toggleExpanded}
-                      setNewText={(v) => setNewSubtaskText(prev => ({ ...prev, [course.id]: v }))}
-                      setNewDate={(v) => setNewSubtaskDate(prev => ({ ...prev, [course.id]: v }))}
-                      setNewHp={(v) => setNewSubtaskHp(prev => ({ ...prev, [course.id]: v }))}
-                      onToggleSubtask={toggleSubtask}
-                      onDeleteSubtask={deleteSubtask}
-                      onAddSubtask={handleAddSubtask}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          {sortedYearEntries.map(([year, yearCourses]) => (
+            <YearSection
+              key={year}
+              year={year}
+              yearCourses={yearCourses}
+              stats={yearHpStats.find(s => s.year === Number(year))}
+              subtasks={subtasks}
+              expandedCourses={expandedCourses}
+              newSubtaskText={newSubtaskText}
+              newSubtaskDate={newSubtaskDate}
+              newSubtaskHp={newSubtaskHp}
+              blocksMap={blocksMap}
+              courseNameMap={courseNameMap}
+              getPrereqStatus={getPrereqStatus}
+              onUpdateStatus={updateStatus}
+              onDelete={handleDelete}
+              onToggleExpanded={toggleExpanded}
+              setNewSubtaskText={setNewSubtaskText}
+              setNewSubtaskDate={setNewSubtaskDate}
+              setNewSubtaskHp={setNewSubtaskHp}
+              onToggleSubtask={toggleSubtask}
+              onDeleteSubtask={deleteSubtask}
+              onAddSubtask={handleAddSubtask}
+            />
+          ))}
         </TooltipProvider>
 
         <Button size="lg" onClick={handleSave} disabled={saving} className="w-full gap-2 text-base mt-4">
