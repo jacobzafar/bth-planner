@@ -297,15 +297,17 @@ function SubtaskRow({
 }
 
 function NewSubtaskForm({
-  courseId, text, date, hp, setText, setDate, setHp, onAdd,
+  courseId, text, date, hp, type, setText, setDate, setHp, setType, onAdd,
 }: {
   courseId: string;
   text: string;
   date: string;
   hp: string;
+  type: SubtaskType;
   setText: (v: string) => void;
   setDate: (v: string) => void;
   setHp: (v: string) => void;
+  setType: (v: SubtaskType) => void;
   onAdd: (courseId: string) => void;
 }) {
   const disabled = !text.trim();
@@ -318,13 +320,22 @@ function NewSubtaskForm({
         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAdd(courseId); } }}
         className="h-8 text-sm"
       />
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Select value={type} onValueChange={(v) => setType(v as SubtaskType)}>
+          <SelectTrigger className="h-8 text-sm w-[130px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="exam">📋 Tenta</SelectItem>
+            <SelectItem value="assignment">📝 Uppgift</SelectItem>
+            <SelectItem value="lab">🧪 Labb</SelectItem>
+            <SelectItem value="other">📌 Annat</SelectItem>
+          </SelectContent>
+        </Select>
         <Input
           type="date"
           placeholder="Datum"
           value={date}
           onChange={e => setDate(e.target.value)}
-          className="h-8 text-sm flex-1"
+          className="h-8 text-sm flex-1 min-w-[120px]"
         />
         <Input
           type="number"
