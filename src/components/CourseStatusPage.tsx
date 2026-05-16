@@ -753,14 +753,6 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const groupedByYear = useMemo(() => groupCoursesByYear(courses), [courses]);
   const yearHpStats = useMemo(() => computeYearStats(groupedByYear), [groupedByYear]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Laddar kurser...</p>
-      </div>
-    );
-  }
-
   const filteredCourses = useMemo(() => {
     const q = filterSearch.trim().toLowerCase();
     return courses.filter(c => {
@@ -776,11 +768,20 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   }, [courses, filterSearch, filterYear, filterStatus, filterUnmetOnly, prereqMap]);
 
   const filteredGroupedByYear = useMemo(() => groupCoursesByYear(filteredCourses), [filteredCourses]);
-  const sortedYearEntries = Object.entries(filteredGroupedByYear).sort(([a], [b]) => Number(a) - Number(b));
   const availableYears = useMemo(
     () => Array.from(new Set(courses.map(c => c.year))).sort((a, b) => a - b),
     [courses],
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Laddar kurser...</p>
+      </div>
+    );
+  }
+
+  const sortedYearEntries = Object.entries(filteredGroupedByYear).sort(([a], [b]) => Number(a) - Number(b));
 
   return (
     <div className="min-h-screen bg-background">
