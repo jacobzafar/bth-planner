@@ -124,6 +124,14 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const now = new Date();
   const upcomingEvents = events.filter(e => e.status !== 'complete' && new Date(e.due_date) >= now);
 
+  const FOCUS_TYPES = new Set(['exam', 'assignment', 'lab']);
+  const focusEvents = upcomingEvents.filter(e => {
+    if (FOCUS_TYPES.has(e.event_type)) return true;
+    // seminar/lecture/other only if HP > 0
+    const hp = (e.hp && e.hp > 0) ? Number(e.hp) : (subtasks.find(s => s.event_id === e.id)?.hp || 0);
+    return Number(hp) > 0;
+  });
+
   const thisWeek = upcomingEvents.filter(e => {
     const diff = (new Date(e.due_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff >= 0 && diff <= 7;
@@ -147,6 +155,62 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
       setSelected(null);
       fetchData();
     }
+  };
+
+  const toggleStatus = async () => {
+    if (!selected) return;
+    const newStatus = selected.status === 'complete' ? 'upcoming' : 'complete';
+    setSaving(true);
+    const { error } = await supabase.from('study_events').update({ status: newStatus }).eq('id', selected.id);
+    setSaving(false);
+    if (error) { toast.error('Kunde inte uppdatera status'); return; }
+    setEvents(prev => prev.map(e => e.id === selected.id ? { ...e, status: newStatus } : e));
+    setSelected({ ...selected, status: newStatus });
+    toast.success(newStatus === 'complete' ? 'Markerad som klar' : 'Markerad som kommande');
+  };
+
+  const beginEdit = () => {
+    if (!selected) return;
+    setFTitle(selected.title);
+    setFCourse(selected.course_code || '');
+    setFType(selected.event_type);
+    setFDate(selected.due_date);
+    setFTime(selected.due_time || '');
+    setFDesc(selected.description || '');
+    setFHp(selected.hp && selected.hp > 0 ? String(selected.hp) : '');
+    setFStatus(selected.status);
+    setEditing(true);
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected) return;
+    if (!fTitle.trim() || !fDate) { toast.error('Fyll i alla obligatoriska fält'); return; }
+    let hpValue = 0;
+    if (fHp.trim()) {
+      const parsed = parseFloat(fHp.replace(',', '.'));
+      if (isNaN(parsed) || parsed < 0) { toast.error('Ogiltigt HP-värde'); return; }
+      hpValue = parsed;
+    }
+    setSaving(true);
+    const updates = {
+      title: fTitle.trim(),
+      course_code: fCourse || null,
+      event_type: fType,
+      due_date: fDate,
+      due_time: fTime || null,
+      description: fDesc.trim() || null,
+      hp: hpValue,
+      status: fStatus,
+    };
+    const { error } = await supabase.from('study_events').update(updates).eq('id', selected.id);
+    setSaving(false);
+    if (error) { toast.error('Kunde inte spara ändringar'); return; }
+    const updated = { ...selected, ...updates };
+    setEvents(prev => prev.map(ev => ev.id === selected.id ? updated : ev));
+    setSelected(updated);
+    setEditing(false);
+    toast.success('Händelse uppdaterad');
   };
 
   const typeColor: Record<string, string> = {
