@@ -716,3 +716,22 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     </div>
   );
 }
+
+function InfoPopover({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className="inline-flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="start" className="w-72 text-sm">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
