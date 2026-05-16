@@ -42,7 +42,7 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
         .from('profiles')
         .update({ 
           program_name: program.name, 
-          start_year: parseInt(startYear, 10),
+          start_year: Number.parseInt(startYear, 10),
           setup_complete: true 
         })
         .eq('user_id', userId);
@@ -50,7 +50,7 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
       if (profileError) throw profileError;
 
       // Calculate which years the student has completed based on start year
-      const yearsStudied = currentYear - parseInt(startYear, 10);
+      const yearsStudied = currentYear - Number.parseInt(startYear, 10);
 
       // Insert all courses from the program for years up to current
       const coursesToInsert = program.courses
@@ -117,11 +117,11 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
         </div>
 
         <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1 mb-4">
-          {filteredPrograms.map((program, i) => {
+          {filteredPrograms.map((program) => {
             const originalIndex = bthPrograms.indexOf(program);
             return (
               <Card
-                key={i}
+                key={program.name}
                 onClick={() => setSelected(originalIndex)}
                 className={`cursor-pointer transition-all hover:shadow-md ${
                   selected === originalIndex ? 'ring-2 ring-primary bg-secondary' : ''

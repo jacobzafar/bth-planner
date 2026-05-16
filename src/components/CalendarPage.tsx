@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, subDays, isSameDay } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -77,9 +77,10 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
           </div>
 
           <div className="grid grid-cols-7 gap-px">
-            {Array.from({ length: startPad }).map((_, i) => (
-              <div key={`pad-${i}`} className="min-h-[80px] md:min-h-[100px] bg-muted/30 rounded-sm" />
-            ))}
+            {Array.from({ length: startPad }).map((_, i) => {
+              const padDate = format(subDays(monthStart, startPad - i), 'yyyy-MM-dd');
+              return <div key={`pad-${padDate}`} className="min-h-[80px] md:min-h-[100px] bg-muted/30 rounded-sm" />;
+            })}
             {days.map(day => {
               const dateStr = format(day, 'yyyy-MM-dd');
               const dayEvents = eventsByDate.get(dateStr) || [];

@@ -16,43 +16,55 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateInput = (): boolean => {
     if (!email.trim()) {
       toast.error('Fyll i e-postadress');
-      return;
+      return false;
     }
     if (mode !== 'forgot' && !password.trim()) {
       toast.error('Fyll i lösenord');
-      return;
+      return false;
     }
+    if (mode === 'signup' && password.length < 6) {
+      toast.error('Lösenordet måste vara minst 6 tecken');
+      return false;
+    }
+    return true;
+  };
+
+  const doLogin = async () => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    toast.success('Inloggad!');
+  };
+
+  const doSignup = async () => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: globalThis.location.origin },
+    });
+    if (error) throw error;
+    toast.success('Konto skapat! Kontrollera din e-post för verifiering.');
+  };
+
+  const doForgot = async () => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${globalThis.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+    toast.success('Återställningslänk skickad! Kontrollera din e-post.');
+    setMode('login');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateInput()) return;
     setLoading(true);
     try {
-      if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success('Inloggad!');
-      } else if (mode === 'signup') {
-        if (password.length < 6) {
-          toast.error('Lösenordet måste vara minst 6 tecken');
-          setLoading(false);
-          return;
-        }
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin }
-        });
-        if (error) throw error;
-        toast.success('Konto skapat! Kontrollera din e-post för verifiering.');
-      } else if (mode === 'forgot') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) throw error;
-        toast.success('Återställningslänk skickad! Kontrollera din e-post.');
-        setMode('login');
-      }
+      if (mode === 'login') await doLogin();
+      else if (mode === 'signup') await doSignup();
+      else await doForgot();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Något gick fel';
       toast.error(message);

@@ -469,6 +469,79 @@ function CourseCard(props: CourseCardProps) {
   );
 }
 
+interface YearSectionProps {
+  year: string;
+  yearCourses: UserCourse[];
+  stats: { completed: number; total: number } | undefined;
+  subtasks: Subtask[];
+  expandedCourses: Set<string>;
+  newSubtaskText: Record<string, string>;
+  newSubtaskDate: Record<string, string>;
+  newSubtaskHp: Record<string, string>;
+  blocksMap: Map<string, string[]>;
+  courseNameMap: Map<string, string>;
+  getPrereqStatus: (code: string) => PrereqStatus | null;
+  onUpdateStatus: (id: string, s: CourseStatus) => void;
+  onDelete: (id: string, name: string) => void;
+  onToggleExpanded: (id: string) => void;
+  setNewSubtaskText: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setNewSubtaskDate: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setNewSubtaskHp: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  onToggleSubtask: (s: Subtask) => void;
+  onDeleteSubtask: (s: Subtask) => void;
+  onAddSubtask: (courseId: string) => void;
+}
+
+function YearSection(props: YearSectionProps) {
+  const {
+    year, yearCourses, stats, subtasks, expandedCourses,
+    newSubtaskText, newSubtaskDate, newSubtaskHp,
+    blocksMap, courseNameMap, getPrereqStatus,
+    onUpdateStatus, onDelete, onToggleExpanded,
+    setNewSubtaskText, setNewSubtaskDate, setNewSubtaskHp,
+    onToggleSubtask, onDeleteSubtask, onAddSubtask,
+  } = props;
+
+  const yearProgress = stats && stats.total > 0
+    ? Math.round((stats.completed / stats.total) * 100)
+    : 0;
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-heading font-semibold text-foreground">År {year}</h3>
+        <span className="text-xs text-muted-foreground">{stats?.completed}/{stats?.total} HP ({yearProgress}%)</span>
+      </div>
+      <Progress value={yearProgress} className="h-1.5 mb-3" />
+      <div className="space-y-2">
+        {yearCourses.map(course => (
+          <CourseCard
+            key={course.id}
+            course={course}
+            prereqStatus={getPrereqStatus(course.course_code)}
+            blocks={blocksMap.get(course.course_code)}
+            courseNameMap={courseNameMap}
+            courseSubtasks={subtasks.filter(s => s.course_id === course.id)}
+            isExpanded={expandedCourses.has(course.id)}
+            newText={newSubtaskText[course.id] || ''}
+            newDate={newSubtaskDate[course.id] || ''}
+            newHp={newSubtaskHp[course.id] || ''}
+            onUpdateStatus={onUpdateStatus}
+            onDelete={onDelete}
+            onToggleExpanded={onToggleExpanded}
+            setNewText={(v) => setNewSubtaskText(prev => ({ ...prev, [course.id]: v }))}
+            setNewDate={(v) => setNewSubtaskDate(prev => ({ ...prev, [course.id]: v }))}
+            setNewHp={(v) => setNewSubtaskHp(prev => ({ ...prev, [course.id]: v }))}
+            onToggleSubtask={onToggleSubtask}
+            onDeleteSubtask={onDeleteSubtask}
+            onAddSubtask={onAddSubtask}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------- Main page ----------
 
 export default function CourseStatusPage({ userId, programName }: CourseStatusPageProps) {
@@ -568,7 +641,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   };
 
   const handleAddCourse = async (course: { code: string; name: string; hp: number }) => {
-    const year = parseInt(addYear, 10);
+    const year = Number.parseInt(addYear, 10);
     const { data, error } = await supabase.from('user_courses').insert({
       user_id: userId, course_code: course.code, course_name: course.name,
       hp: course.hp, year, status: 'not_started',
@@ -698,47 +771,31 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
         </p>
 
         <TooltipProvider>
-          {sortedYearEntries.map(([year, yearCourses]) => {
-            const stats = yearHpStats.find(s => s.year === Number(year));
-            const yearProgress = stats && stats.total > 0
-              ? Math.round((stats.completed / stats.total) * 100)
-              : 0;
-
-            return (
-              <div key={year} className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-heading font-semibold text-foreground">År {year}</h3>
-                  <span className="text-xs text-muted-foreground">{stats?.completed}/{stats?.total} HP ({yearProgress}%)</span>
-                </div>
-                <Progress value={yearProgress} className="h-1.5 mb-3" />
-                <div className="space-y-2">
-                  {yearCourses.map(course => (
-                    <CourseCard
-                      key={course.id}
-                      course={course}
-                      prereqStatus={getPrereqStatus(course.course_code)}
-                      blocks={blocksMap.get(course.course_code)}
-                      courseNameMap={courseNameMap}
-                      courseSubtasks={subtasks.filter(s => s.course_id === course.id)}
-                      isExpanded={expandedCourses.has(course.id)}
-                      newText={newSubtaskText[course.id] || ''}
-                      newDate={newSubtaskDate[course.id] || ''}
-                      newHp={newSubtaskHp[course.id] || ''}
-                      onUpdateStatus={updateStatus}
-                      onDelete={handleDelete}
-                      onToggleExpanded={toggleExpanded}
-                      setNewText={(v) => setNewSubtaskText(prev => ({ ...prev, [course.id]: v }))}
-                      setNewDate={(v) => setNewSubtaskDate(prev => ({ ...prev, [course.id]: v }))}
-                      setNewHp={(v) => setNewSubtaskHp(prev => ({ ...prev, [course.id]: v }))}
-                      onToggleSubtask={toggleSubtask}
-                      onDeleteSubtask={deleteSubtask}
-                      onAddSubtask={handleAddSubtask}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          {sortedYearEntries.map(([year, yearCourses]) => (
+            <YearSection
+              key={year}
+              year={year}
+              yearCourses={yearCourses}
+              stats={yearHpStats.find(s => s.year === Number(year))}
+              subtasks={subtasks}
+              expandedCourses={expandedCourses}
+              newSubtaskText={newSubtaskText}
+              newSubtaskDate={newSubtaskDate}
+              newSubtaskHp={newSubtaskHp}
+              blocksMap={blocksMap}
+              courseNameMap={courseNameMap}
+              getPrereqStatus={getPrereqStatus}
+              onUpdateStatus={updateStatus}
+              onDelete={handleDelete}
+              onToggleExpanded={toggleExpanded}
+              setNewSubtaskText={setNewSubtaskText}
+              setNewSubtaskDate={setNewSubtaskDate}
+              setNewSubtaskHp={setNewSubtaskHp}
+              onToggleSubtask={toggleSubtask}
+              onDeleteSubtask={deleteSubtask}
+              onAddSubtask={handleAddSubtask}
+            />
+          ))}
         </TooltipProvider>
 
         <Button size="lg" onClick={handleSave} disabled={saving} className="w-full gap-2 text-base mt-4">
