@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { AlertTriangle, CheckCircle2, Clock, Plus, Target, CalendarDays, BookOpen, TrendingUp } from 'lucide-react';
 import { format, differenceInHours, isToday, isTomorrow } from 'date-fns';
 import { sv } from 'date-fns/locale';
@@ -24,6 +27,7 @@ interface StudyEvent {
   due_time: string | null;
   description: string | null;
   status: string;
+  hp: number | null;
 }
 
 interface CourseData {
@@ -39,11 +43,27 @@ interface LinkedSubtask {
   completed: boolean;
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  exam: 'Tenta',
+  assignment: 'Uppgift',
+  lab: 'Labb',
+  seminar: 'Seminarium',
+  lecture: 'Föreläsning',
+  other: 'Annat',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  upcoming: 'Kommande',
+  complete: 'Klar',
+  overdue: 'Försenad',
+};
+
 export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [courses, setCourses] = useState<CourseData[]>([]);
   const [subtasks, setSubtasks] = useState<LinkedSubtask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<StudyEvent | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -73,7 +93,6 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     partly: courses.filter(c => c.status === 'partly').length,
   };
 
-  // Group HP by year
   const years = [...new Set(courses.map(c => c.year))].sort((a, b) => a - b);
   const hpByYear = years.map(year => {
     const yearCourses = courses.filter(c => c.year === year);
@@ -102,12 +121,12 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     if (error) {
       toast.error('Kunde inte uppdatera');
     } else {
-      // Also mark linked subtask as complete
       const linkedSubtask = subtasks.find(s => s.event_id === id);
       if (linkedSubtask) {
         await supabase.from('course_subtasks').update({ completed: true }).eq('id', linkedSubtask.id);
       }
       toast.success('Markerad som klar!');
+      setSelected(null);
       fetchData();
     }
   };
@@ -116,30 +135,73 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     assignment: 'bg-info text-info-foreground',
     lab: 'bg-success text-success-foreground',
     exam: 'bg-destructive text-destructive-foreground',
+    seminar: 'bg-primary text-primary-foreground',
+    lecture: 'bg-muted text-foreground',
   };
 
-  const typeLabel: Record<string, string> = {
-    assignment: 'Uppgift',
-    lab: 'Labb',
-    exam: 'Tenta',
-    other: 'Övrigt',
+  const getEventHp = (event: StudyEvent): number => {
+    if (event.hp && event.hp > 0) return Number(event.hp);
+    const linked = subtasks.find(s => s.event_id === event.id);
+    return linked ? Number(linked.hp) : 0;
   };
 
-  const getReasons = (event: StudyEvent, hoursLeft: number, linkedHp: number | null, hasLinkedSubtask: boolean): string[] => {
+  const hoursUntil = (event: StudyEvent) =>
+    differenceInHours(new Date(`${event.due_date}T${event.due_time || '23:59'}`), now);
+
+  // Short, single-line reason for the card
+  const getShortReason = (event: StudyEvent): string | null => {
+    const h = hoursUntil(event);
+    const hp = getEventHp(event);
+    const typeName = TYPE_LABEL[event.event_type];
+    const course = event.course_code;
+    const linkedSubtask = subtasks.find(s => s.event_id === event.id);
+
+    if (h < 0 && course) return `Försenad – ${typeName?.toLowerCase() || 'händelse'} i ${course}`;
+    if (h < 0) return 'Försenad deadline';
+
+    if (event.event_type === 'exam' && h < 168 && course) return `Deadline snart – tenta i ${course}`;
+    if (event.event_type === 'exam' && course) return `Tenta i ${course}`;
+
+    if (hp >= 3 && h < 168) return `Hög prioritet: ${hp} HP och deadline denna vecka`;
+    if (hp >= 3 && course) return `Stort moment (${hp} HP) i ${course}`;
+
+    if (linkedSubtask && !linkedSubtask.completed) return 'Kopplad till kursmoment – ej avklarad';
+
+    if (h < 24 && course) return `Viktig deadline i ${course}`;
+    if (h < 24) return 'Deadline inom 24h';
+    if (h < 72 && course) return `Deadline snart i ${course}`;
+    if (h < 72) return 'Deadline inom 3 dagar';
+    if (h < 168 && typeName && course) return `${typeName} denna vecka i ${course}`;
+    if (h < 168) return 'Deadline denna vecka';
+
+    if (course && typeName) return `${typeName} i ${course}`;
+    return null;
+  };
+
+  // Detailed bullet reasons for modal
+  const getDetailedReasons = (event: StudyEvent): string[] => {
     const reasons: string[] = [];
-    if (hoursLeft < 0) reasons.push('Försenad');
-    else if (hoursLeft < 24) reasons.push('Deadline inom 24h');
-    else if (hoursLeft < 72) reasons.push('Deadline inom 3 dagar');
-    else if (hoursLeft < 168) reasons.push('Deadline inom en vecka');
+    const h = hoursUntil(event);
+    const hp = getEventHp(event);
+    const linkedSubtask = subtasks.find(s => s.event_id === event.id);
 
-    if (event.event_type === 'exam') reasons.push('Tenta – hög vikt');
-    else if (event.event_type === 'assignment') reasons.push('Inlämningsuppgift');
-    else if (event.event_type === 'lab') reasons.push('Laboration');
+    if (h < 0) reasons.push('Deadline har redan passerat');
+    else if (h < 24) reasons.push('Mindre än 24 timmar kvar till deadline');
+    else if (h < 72) reasons.push('Deadline inom 3 dagar');
+    else if (h < 168) reasons.push('Deadline inom en vecka');
 
-    if (event.course_code) reasons.push(`Kopplad till ${event.course_code}`);
-    if (linkedHp && linkedHp > 0) reasons.push(`${linkedHp} HP`);
-    if (hasLinkedSubtask) reasons.push('Kopplad till kursmoment');
-    if (event.status && event.status !== 'complete') reasons.push('Ej avklarad');
+    if (event.event_type === 'exam') reasons.push('Tentor väger tyngst i prioriteringen');
+    else if (event.event_type === 'assignment') reasons.push('Inlämningsuppgifter prioriteras högre än övriga moment');
+    else if (event.event_type === 'lab') reasons.push('Laboration – kräver ofta förberedelse');
+
+    if (event.course_code) reasons.push(`Kopplad till kursen ${event.course_code}`);
+    if (hp > 0) reasons.push(`${hp} HP – större moment prioriteras högre`);
+    if (linkedSubtask) {
+      reasons.push(linkedSubtask.completed
+        ? 'Kopplad till ett kursmoment (avklarat)'
+        : 'Kopplad till ett kursmoment som ännu inte är avklarat');
+    }
+    if (event.status && event.status !== 'complete') reasons.push('Status är fortfarande "Kommande"');
     return reasons;
   };
 
@@ -248,18 +310,16 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
             </p>
           ) : (
             upcomingEvents.slice(0, 5).map((event, i) => {
-              const hoursLeft = differenceInHours(
-                new Date(`${event.due_date}T${event.due_time || '23:59'}`),
-                now
-              );
-              const urgent = hoursLeft < 24 && hoursLeft >= 0;
-              const linked = subtasks.find(s => s.event_id === event.id);
-              const linkedHp = linked ? linked.hp : null;
-              const reasons = getReasons(event, hoursLeft, linkedHp, !!linked);
+              const h = hoursUntil(event);
+              const urgent = h < 24 && h >= 0;
+              const hp = getEventHp(event);
+              const shortReason = getShortReason(event);
               return (
-                <div
+                <button
+                  type="button"
                   key={event.id}
-                  className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                  onClick={() => setSelected(event)}
+                  className={`w-full text-left flex items-start gap-3 p-3 rounded-lg border transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                     urgent ? 'border-destructive/30 bg-destructive/5' : 'border-border'
                   }`}
                 >
@@ -271,32 +331,23 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
                       {urgent && <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />}
                       <span className="font-semibold text-sm text-foreground">{event.title}</span>
                       <Badge className={`${typeColor[event.event_type] || 'bg-muted text-muted-foreground'} text-xs`}>
-                        {typeLabel[event.event_type] || event.event_type}
+                        {TYPE_LABEL[event.event_type] || event.event_type}
                       </Badge>
-                      {linkedHp && linkedHp > 0 ? (
-                        <Badge variant="outline" className="text-xs">{linkedHp} HP</Badge>
-                      ) : null}
+                      {hp > 0 && (
+                        <Badge variant="outline" className="text-xs">{hp} HP</Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>📅 {formatDueLabel(event.due_date, event.due_time)}</span>
                       {event.course_code && <span>• {event.course_code}</span>}
                     </div>
-                    {reasons.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1.5 italic">
-                        Prioriterad: {reasons.join(' • ')}
+                    {shortReason && (
+                      <p className="text-xs text-primary/90 mt-1.5 font-medium truncate">
+                        {shortReason}
                       </p>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleComplete(event.id)}
-                    className="shrink-0"
-                    title="Markera som klar"
-                  >
-                    <CheckCircle2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                </button>
               );
             })
           )}
@@ -316,6 +367,76 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
           </Button>
         </Link>
       </div>
+
+      {/* Detail modal */}
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-md">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="font-heading pr-6">{selected.title}</DialogTitle>
+                <DialogDescription className="flex flex-wrap gap-2 pt-2">
+                  <Badge variant="secondary">{TYPE_LABEL[selected.event_type] || selected.event_type}</Badge>
+                  {selected.course_code && <Badge variant="outline">{selected.course_code}</Badge>}
+                  {getEventHp(selected) > 0 && (
+                    <Badge variant="outline">{getEventHp(selected)} HP</Badge>
+                  )}
+                  <Badge variant={selected.status === 'complete' ? 'default' : 'secondary'}>
+                    {STATUS_LABEL[selected.status] || selected.status}
+                  </Badge>
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Datum: </span>
+                  <span className="font-medium">
+                    {format(new Date(selected.due_date), 'EEEE d MMMM yyyy', { locale: sv })}
+                  </span>
+                </div>
+                {selected.due_time && (
+                  <div>
+                    <span className="text-muted-foreground">Tid: </span>
+                    <span className="font-medium">{selected.due_time.slice(0, 5)}</span>
+                  </div>
+                )}
+                {selected.description && (
+                  <div className="pt-2">
+                    <p className="text-muted-foreground mb-1">Beskrivning</p>
+                    <p className="whitespace-pre-wrap">{selected.description}</p>
+                  </div>
+                )}
+
+                <div className="pt-3 border-t mt-3">
+                  <p className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" /> Varför prioriterad?
+                  </p>
+                  {(() => {
+                    const reasons = getDetailedReasons(selected);
+                    if (reasons.length === 0) {
+                      return <p className="text-muted-foreground text-xs">Ingen särskild prioriteringsfaktor – händelsen visas i kronologisk ordning.</p>;
+                    }
+                    return (
+                      <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                        {reasons.map((r, idx) => <li key={idx}>{r}</li>)}
+                      </ul>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                {selected.status !== 'complete' && (
+                  <Button onClick={() => handleComplete(selected.id)} className="gap-2">
+                    <CheckCircle2 className="h-4 w-4" /> Markera klar
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setSelected(null)}>Stäng</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
