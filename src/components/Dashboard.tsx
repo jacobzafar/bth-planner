@@ -381,12 +381,12 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {upcomingEvents.length === 0 ? (
+          {focusEvents.length === 0 ? (
             <p className="text-muted-foreground text-sm py-4 text-center">
               Inga kommande händelser. Lägg till händelser för att se dina prioriteringar!
             </p>
           ) : (
-            upcomingEvents.slice(0, 5).map((event, i) => {
+            focusEvents.slice(0, 5).map((event, i) => {
               const h = hoursUntil(event);
               const urgent = h < 24 && h >= 0;
               const hp = getEventHp(event);
