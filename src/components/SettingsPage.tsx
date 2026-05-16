@@ -3,10 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { LogOut, User, GraduationCap, AlertTriangle, BarChart3, Settings as SettingsIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { LogOut, User, GraduationCap, Settings as SettingsIcon, RotateCcw, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
+import { toast } from 'sonner';
 
 interface SettingsPageProps {
   userId: string;
@@ -14,23 +21,27 @@ interface SettingsPageProps {
   programName: string;
   startYear: number;
   onLogout: () => void;
+  onResetPlan?: () => void;
 }
 
 interface CourseRow {
   course_code: string;
-  course_name: string;
-  year: number;
   hp: number;
   status: 'completed' | 'partly' | 'not_started';
 }
 
-export default function SettingsPage({ userId, email, programName, startYear, onLogout }: SettingsPageProps) {
+export default function SettingsPage({ userId, email, programName, startYear, onLogout, onResetPlan }: SettingsPageProps) {
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     supabase.from('user_courses')
-      .select('course_code, course_name, year, hp, status')
+      .select('course_code, hp, status')
       .eq('user_id', userId)
       .then(({ data }) => {
         setCourses((data || []) as CourseRow[]);
@@ -48,71 +59,53 @@ export default function SettingsPage({ userId, email, programName, startYear, on
     [startYear],
   );
 
-  // Maps for prereq/blocking from program template
-  const { prereqMap, blocksMap, courseYearMap, nameMap } = useMemo(() => {
-    const prereq = new Map<string, string[]>();
-    const blocks = new Map<string, string[]>();
-    const yearMap = new Map<string, number>();
-    const names = new Map<string, string>();
-    if (programTemplate) {
-      for (const c of programTemplate.courses) {
-        yearMap.set(c.code, c.year);
-        names.set(c.code, c.name);
-        if (c.prerequisites && c.prerequisites.length) {
-          prereq.set(c.code, c.prerequisites);
-          for (const p of c.prerequisites) {
-            const arr = blocks.get(p) || [];
-            arr.push(c.code);
-            blocks.set(p, arr);
-          }
-        }
-      }
-    }
-    for (const c of courses) {
-      if (!names.has(c.course_code)) names.set(c.course_code, c.course_name);
-    }
-    return { prereqMap: prereq, blocksMap: blocks, courseYearMap: yearMap, nameMap: names };
-  }, [programTemplate, courses]);
-
-  const statusByCode = useMemo(() => {
-    const m = new Map<string, CourseRow['status']>();
-    for (const c of courses) m.set(c.course_code, c.status);
-    return m;
-  }, [courses]);
-
-  // Stats
   const completedHp = courses.filter(c => c.status === 'completed').reduce((s, c) => s + Number(c.hp || 0), 0);
-  const totalUserHp = courses.reduce((s, c) => s + Number(c.hp || 0), 0);
-  const totalProgramHp = programTemplate ? programTemplate.courses.reduce((s, c) => s + c.hp, 0) : totalUserHp;
+  const totalProgramHp = programTemplate ? programTemplate.courses.reduce((s, c) => s + c.hp, 0)
+    : courses.reduce((s, c) => s + Number(c.hp || 0), 0);
   const progressPct = totalProgramHp > 0 ? Math.round((completedHp / totalProgramHp) * 100) : 0;
 
-  // Risks
-  const currentStudyYear = estimate?.year ?? 1;
-  const overdueCourses = courses.filter(
-    c => c.year <= currentStudyYear && c.status !== 'completed',
-  );
+  const handleResetPlan = async () => {
+    setResetting(true);
+    // Clear study-plan related data
+    const ops = await Promise.all([
+      supabase.from('course_subtasks').delete().eq('user_id', userId),
+      supabase.from('study_events').delete().eq('user_id', userId),
+      supabase.from('user_courses').delete().eq('user_id', userId),
+      supabase.from('profiles').update({ setup_complete: false, program_name: null, start_year: null }).eq('user_id', userId),
+    ]);
+    setResetting(false);
+    const err = ops.find(o => o.error)?.error;
+    if (err) {
+      toast.error('Kunde inte återställa studieplanen');
+      return;
+    }
+    toast.success('Studieplanen är återställd');
+    setResetOpen(false);
+    onResetPlan?.();
+  };
 
-  // Courses with unmet prereqs (only future/current courses still not completed)
-  const unmetPrereqCourses = courses
-    .filter(c => c.status !== 'completed')
-    .map(c => {
-      const prereqs = prereqMap.get(c.course_code) || [];
-      const unmet = prereqs.filter(p => statusByCode.get(p) !== 'completed');
-      return { course: c, unmet };
-    })
-    .filter(x => x.unmet.length > 0);
-
-  // Not-completed courses that block upcoming courses
-  const blockingNotDone = courses
-    .filter(c => c.status !== 'completed')
-    .map(c => {
-      const blocks = (blocksMap.get(c.course_code) || []).filter(b => {
-        const st = statusByCode.get(b);
-        return !st || st !== 'completed';
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm.trim().toUpperCase() !== 'RADERA') {
+      toast.error('Skriv RADERA för att bekräfta');
+      return;
+    }
+    setDeleting(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const { error } = await supabase.functions.invoke('delete-account', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      return { course: c, blocks };
-    })
-    .filter(x => x.blocks.length > 0);
+      if (error) throw error;
+      toast.success('Kontot är raderat');
+      await supabase.auth.signOut();
+      setDeleteOpen(false);
+    } catch (e) {
+      toast.error('Kunde inte radera kontot');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto md:mt-12 animate-slide-up space-y-4 px-1">
@@ -165,112 +158,28 @@ export default function SettingsPage({ userId, email, programName, startYear, on
               </span>
             </div>
           )}
-          {programTemplate && (
-            <div className="pt-2 border-t border-border/50 grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="text-xs text-muted-foreground">Kurser</p>
-                <p className="text-sm font-semibold">{courses.length}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">HP klara</p>
-                <p className="text-sm font-semibold">{completedHp}/{totalProgramHp}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Framsteg</p>
-                <p className="text-sm font-semibold">{progressPct}%</p>
-              </div>
-            </div>
-          )}
-          {programTemplate && (
-            <Progress value={progressPct} className="h-1.5" />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Risk overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-heading text-base flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" /> Riskbild & framsteg
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Laddar...</p>
-          ) : (
+          {programTemplate && !loading && (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-border p-3">
-                  <p className="text-xs text-muted-foreground">Ej avklarade från tidigare/nuvarande år</p>
-                  <p className="text-xl font-bold text-foreground">{overdueCourses.length}</p>
+              <div className="pt-2 border-t border-border/50 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-xs text-muted-foreground">Kurser</p>
+                  <p className="text-sm font-semibold">{courses.length}</p>
                 </div>
-                <div className="rounded-lg border border-border p-3">
-                  <p className="text-xs text-muted-foreground">Kurser med ej uppfyllda förkunskaper</p>
-                  <p className="text-xl font-bold text-foreground">{unmetPrereqCourses.length}</p>
+                <div>
+                  <p className="text-xs text-muted-foreground">HP klara</p>
+                  <p className="text-sm font-semibold">{completedHp}/{totalProgramHp}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Framsteg</p>
+                  <p className="text-sm font-semibold">{progressPct}%</p>
                 </div>
               </div>
-
-              {overdueCourses.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
-                    Ej avklarade kurser från tidigare år
-                  </p>
-                  <ul className="space-y-1 text-sm">
-                    {overdueCourses.slice(0, 5).map(c => {
-                      const blocks = (blocksMap.get(c.course_code) || []);
-                      return (
-                        <li key={c.course_code} className="text-muted-foreground">
-                          <span className="font-mono text-foreground">{c.course_code}</span>{' '}
-                          är inte avklarad
-                          {blocks.length > 0 && ' och kan påverka kommande kurser'}
-                        </li>
-                      );
-                    })}
-                    {overdueCourses.length > 5 && (
-                      <li className="text-xs text-muted-foreground">+{overdueCourses.length - 5} till</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-
-              {unmetPrereqCourses.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
-                    Kommande kurser med ej uppfyllda förkunskaper
-                  </p>
-                  <ul className="space-y-1 text-sm">
-                    {unmetPrereqCourses.slice(0, 5).map(({ course, unmet }) => (
-                      <li key={course.course_code} className="text-muted-foreground">
-                        <span className="font-mono text-foreground">{course.course_code}</span>{' '}
-                        kräver {unmet.map(u => (
-                          <span key={u} className="font-mono text-foreground">{u}</span>
-                        )).reduce<React.ReactNode[]>((acc, el, i) => {
-                          if (i > 0) acc.push(', ');
-                          acc.push(el);
-                          return acc;
-                        }, [])}
-                      </li>
-                    ))}
-                    {unmetPrereqCourses.length > 5 && (
-                      <li className="text-xs text-muted-foreground">+{unmetPrereqCourses.length - 5} till</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-
-              {blockingNotDone.length > 0 && (
-                <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
-                  Tips: Prioritera moment i kurser som spärrar kommande kurser för att inte halka efter.
-                </p>
-              )}
-
-              {overdueCourses.length === 0 && unmetPrereqCourses.length === 0 && (
-                <p className="text-sm text-muted-foreground">Inga risker upptäckta just nu. Bra jobbat!</p>
-              )}
+              <Progress value={progressPct} className="h-1.5" />
             </>
           )}
+          <p className="text-xs text-muted-foreground pt-1">
+            Detaljerade rekommendationer och risker visas på översikten.
+          </p>
         </CardContent>
       </Card>
 
@@ -281,12 +190,89 @@ export default function SettingsPage({ userId, email, programName, startYear, on
             <SettingsIcon className="h-4 w-4" /> Åtgärder
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Button variant="destructive" onClick={onLogout} className="w-full gap-2">
+        <CardContent className="space-y-2">
+          <Button variant="outline" onClick={() => setResetOpen(true)} className="w-full gap-2 justify-start">
+            <RotateCcw className="h-4 w-4" /> Börja om studieplan
+          </Button>
+          <Button variant="outline" onClick={onLogout} className="w-full gap-2 justify-start">
             <LogOut className="h-4 w-4" /> Logga ut
           </Button>
         </CardContent>
       </Card>
+
+      {/* Danger zone */}
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="font-heading text-base flex items-center gap-2 text-destructive">
+            <Trash2 className="h-4 w-4" /> Farozon
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Permanent borttagning av kontot. Detta går inte att ångra.
+          </p>
+          <Button variant="destructive" onClick={() => { setDeleteConfirm(''); setDeleteOpen(true); }} className="w-full gap-2">
+            <Trash2 className="h-4 w-4" /> Radera konto
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Reset confirmation */}
+      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Börja om studieplanen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta tar bort dina kurser, delmoment och kalenderhändelser och tar dig tillbaka till val av program och startår.
+              Ditt konto och din inloggning behålls. Åtgärden kan inte ångras.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetting}>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleResetPlan(); }}
+              disabled={resetting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {resetting ? 'Återställer...' : 'Börja om'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete account confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={(o) => { setDeleteOpen(o); if (!o) setDeleteConfirm(''); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Radera konto permanent?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta tar bort ditt konto, din studieplan, dina kurser, delmoment och kalenderhändelser. Åtgärden kan inte ångras.
+              <br /><br />
+              Skriv <span className="font-mono font-semibold text-foreground">RADERA</span> för att bekräfta.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="del-confirm" className="sr-only">Bekräftelse</Label>
+            <Input
+              id="del-confirm"
+              autoComplete="off"
+              placeholder="RADERA"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteAccount(); }}
+              disabled={deleting || deleteConfirm.trim().toUpperCase() !== 'RADERA'}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Raderar...' : 'Radera konto'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
