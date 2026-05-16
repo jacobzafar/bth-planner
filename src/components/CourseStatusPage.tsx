@@ -557,6 +557,21 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [newSubtaskDate, setNewSubtaskDate] = useState<Record<string, string>>({});
   const [newSubtaskHp, setNewSubtaskHp] = useState<Record<string, string>>({});
 
+  // Display-only filters
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterUnmetOnly, setFilterUnmetOnly] = useState(false);
+
+  const resetFilters = () => {
+    setFilterSearch('');
+    setFilterYear('all');
+    setFilterStatus('all');
+    setFilterUnmetOnly(false);
+  };
+  const hasActiveFilters =
+    filterSearch.trim() !== '' || filterYear !== 'all' || filterStatus !== 'all' || filterUnmetOnly;
+
   const programTemplate = useMemo(() => {
     if (!programName) return null;
     return bthPrograms.find(p => p.name === programName) || null;
