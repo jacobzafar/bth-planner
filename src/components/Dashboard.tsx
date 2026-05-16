@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { format, differenceInHours, isToday, isTomorrow } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { bthPrograms } from '@/lib/programs';
 
 interface DashboardProps {
   userId: string;
@@ -68,6 +69,7 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [courses, setCourses] = useState<CourseData[]>([]);
   const [subtasks, setSubtasks] = useState<LinkedSubtask[]>([]);
+  const [programName, setProgramName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<StudyEvent | null>(null);
   const [editing, setEditing] = useState(false);
@@ -88,17 +90,35 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   }, [userId]);
 
   const fetchData = async () => {
-    const [eventsRes, coursesRes, subtasksRes] = await Promise.all([
+    const [eventsRes, coursesRes, subtasksRes, profileRes] = await Promise.all([
       supabase.from('study_events').select('*').eq('user_id', userId).order('due_date', { ascending: true }),
       supabase.from('user_courses').select('status, hp, year, course_code, course_name').eq('user_id', userId),
       supabase.from('course_subtasks').select('id, event_id, hp, completed').eq('user_id', userId),
+      supabase.from('profiles').select('program_name').eq('user_id', userId).maybeSingle(),
     ]);
 
     if (eventsRes.data) setEvents(eventsRes.data as StudyEvent[]);
     if (coursesRes.data) setCourses(coursesRes.data as CourseData[]);
     if (subtasksRes.data) setSubtasks(subtasksRes.data as LinkedSubtask[]);
+    if (profileRes.data?.program_name) setProgramName(profileRes.data.program_name);
     setLoading(false);
   };
+
+  // Build map: courseCode -> array of courses it blocks (i.e. courses that list it as prerequisite)
+  const blockingMap = useMemo(() => {
+    const map = new Map<string, { code: string; year: number; semester: 'HT' | 'VT' }[]>();
+    if (!programName) return map;
+    const program = bthPrograms.find(p => p.name === programName);
+    if (!program) return map;
+    program.courses.forEach(c => {
+      (c.prerequisites || []).forEach(pre => {
+        const arr = map.get(pre) || [];
+        arr.push({ code: c.code, year: c.year, semester: c.semester });
+        map.set(pre, arr);
+      });
+    });
+    return map;
+  }, [programName]);
 
   const completedHp = courses.filter(c => c.status === 'completed').reduce((sum, c) => sum + c.hp, 0);
   const partlyHp = courses.filter(c => c.status === 'partly').reduce((sum, c) => sum + c.hp, 0);
@@ -124,13 +144,61 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const now = new Date();
   const upcomingEvents = events.filter(e => e.status !== 'complete' && new Date(e.due_date) >= now);
 
+  // Helpers used by both scoring and reasons
+  const getHpForEvent = (event: StudyEvent): number => {
+    if (event.hp && event.hp > 0) return Number(event.hp);
+    const linked = subtasks.find(s => s.event_id === event.id);
+    return linked ? Number(linked.hp) : 0;
+  };
+
+  // Type weights: exam > assignment > lab > seminar/lecture/other
+  const TYPE_WEIGHT: Record<string, number> = {
+    exam: 30, assignment: 20, lab: 12, seminar: 2, lecture: 2, other: 2,
+  };
+
+  const scoreEvent = (event: StudyEvent): number => {
+    const due = new Date(`${event.due_date}T${event.due_time || '23:59'}`);
+    const h = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
+    let score = 0;
+    // Deadline proximity (dominant signal)
+    if (h < 0) score += 120;
+    else if (h < 24) score += 100;
+    else if (h < 72) score += 70;
+    else if (h < 168) score += 50;
+    else if (h < 336) score += 30;
+    else score += 10;
+    // Type weight (strong tie-breaker at same deadline; max diff exam↔lab = 18)
+    score += TYPE_WEIGHT[event.event_type] ?? 2;
+    // HP / scope — capped so it can't flip exam vs lab at same deadline
+    const hp = getHpForEvent(event);
+    score += Math.min(hp * 2, 12);
+    // Blocking course bonus
+    if (event.course_code && (blockingMap.get(event.course_code)?.length || 0) > 0) {
+      score += 8;
+    }
+    // Linked subtask not done
+    const sub = subtasks.find(s => s.event_id === event.id);
+    if (sub && !sub.completed) score += 3;
+    return score;
+  };
+
   const FOCUS_TYPES = new Set(['exam', 'assignment', 'lab']);
-  const focusEvents = upcomingEvents.filter(e => {
-    if (FOCUS_TYPES.has(e.event_type)) return true;
-    // seminar/lecture/other only if HP > 0
-    const hp = (e.hp && e.hp > 0) ? Number(e.hp) : (subtasks.find(s => s.event_id === e.id)?.hp || 0);
-    return Number(hp) > 0;
-  });
+  const focusEvents = upcomingEvents
+    .filter(e => {
+      if (FOCUS_TYPES.has(e.event_type)) return true;
+      // seminar/lecture/other only if HP > 0 or linked to a course moment
+      if (getHpForEvent(e) > 0) return true;
+      return false;
+    })
+    .map(e => ({ event: e, score: scoreEvent(e) }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const da = new Date(`${a.event.due_date}T${a.event.due_time || '23:59'}`).getTime();
+      const db = new Date(`${b.event.due_date}T${b.event.due_time || '23:59'}`).getTime();
+      if (da !== db) return da - db;
+      return (TYPE_WEIGHT[b.event.event_type] ?? 0) - (TYPE_WEIGHT[a.event.event_type] ?? 0);
+    })
+    .map(x => x.event);
 
   const thisWeek = upcomingEvents.filter(e => {
     const diff = (new Date(e.due_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
@@ -221,62 +289,78 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     lecture: 'bg-muted text-foreground',
   };
 
-  const getEventHp = (event: StudyEvent): number => {
-    if (event.hp && event.hp > 0) return Number(event.hp);
-    const linked = subtasks.find(s => s.event_id === event.id);
-    return linked ? Number(linked.hp) : 0;
-  };
+  // alias kept for backward compat in JSX
+  const getEventHp = getHpForEvent;
 
   const hoursUntil = (event: StudyEvent) =>
     differenceInHours(new Date(`${event.due_date}T${event.due_time || '23:59'}`), now);
 
-  // Short, single-line reason for the card
+  // Build short label for blocking, e.g. "Spärrar MA1423" or "Spärrar MA1423 som kommer snart"
+  const getBlockingLabel = (courseCode: string | null): string | null => {
+    if (!courseCode) return null;
+    const blocked = blockingMap.get(courseCode);
+    if (!blocked || blocked.length === 0) return null;
+    const first = blocked[0];
+    // "soon" if blocked course belongs to next year/term relative to user's current courses
+    const userCourse = courses.find(c => c.course_code === courseCode);
+    const soon = userCourse ? first.year >= userCourse.year : false;
+    const more = blocked.length > 1 ? ` (+${blocked.length - 1} till)` : '';
+    return soon
+      ? `Spärrar ${first.code} som kommer snart${more}`
+      : `Spärrar ${first.code}${more}`;
+  };
+
+  // Short, single-line reason for the card — matches ranking
   const getShortReason = (event: StudyEvent): string | null => {
     const h = hoursUntil(event);
     const hp = getEventHp(event);
-    const typeName = TYPE_LABEL[event.event_type];
     const course = event.course_code;
+    const blocking = getBlockingLabel(course);
 
-    if (h < 0 && course) return `Försenad – ${typeName?.toLowerCase() || 'händelse'} i ${course}`;
-    if (h < 0) return 'Försenad deadline';
+    if (h < 0) return course ? `Försenad deadline i ${course}` : 'Försenad deadline';
 
-    if (event.event_type === 'exam' && h < 168 && course) return `Deadline snart – tenta i ${course}`;
-    if (event.event_type === 'exam' && course) return `Tenta i ${course}`;
-
-    if (hp >= 3) return course ? `Hög omfattning: ${hp} HP i ${course}` : `Hög omfattning: ${hp} HP`;
-
-    if (event.event_type === 'lab' && h < 168 && course) return `Labb denna vecka i ${course}`;
-
-    if (h < 24 && course) return `Deadline snart i ${course}`;
+    if (event.event_type === 'exam') {
+      if (h < 168) return course ? `Tenta snart i ${course}` : 'Tenta snart';
+      return course ? `Tenta i ${course}` : 'Tenta';
+    }
+    if (blocking) return blocking;
+    if (event.event_type === 'assignment') {
+      if (h < 72) return course ? `Uppgift med deadline snart i ${course}` : 'Uppgift med deadline snart';
+      if (hp >= 3) return course ? `Större uppgift (${hp} HP) i ${course}` : `Större uppgift (${hp} HP)`;
+      return course ? `Uppgift i ${course}` : 'Uppgift';
+    }
+    if (event.event_type === 'lab') {
+      if (h < 72) return course ? `Labb snart i ${course}` : 'Labb snart';
+      return course ? `Labb i ${course}` : 'Labb';
+    }
+    if (hp > 0) return course ? `${hp} HP i ${course}` : `${hp} HP`;
     if (h < 24) return 'Deadline inom 24h';
-    if (h < 72 && course) return `Deadline snart i ${course}`;
-    if (h < 72) return 'Deadline inom 3 dagar';
-    if (h < 168 && typeName && course) return `${typeName} denna vecka i ${course}`;
-    if (h < 168) return 'Deadline denna vecka';
-
-    if (course && typeName) return `${typeName} i ${course}`;
-    return null;
+    if (h < 168) return course ? `Deadline denna vecka i ${course}` : 'Deadline denna vecka';
+    return course ? `Kommande i ${course}` : null;
   };
 
-  // Detailed bullet reasons for modal — short, natural Swedish
+  // Detailed bullet reasons for modal — match actual ranking factors
   const getDetailedReasons = (event: StudyEvent): string[] => {
     const reasons: string[] = [];
     const h = hoursUntil(event);
     const hp = getEventHp(event);
     const linkedSubtask = subtasks.find(s => s.event_id === event.id);
+    const blocking = getBlockingLabel(event.course_code);
 
+    // Deadline
     if (h < 0) reasons.push('Deadline har passerat');
     else if (h < 24) reasons.push('Deadline är snart – mindre än ett dygn kvar');
     else if (h < 72) reasons.push('Deadline är snart – inom 3 dagar');
     else if (h < 168) reasons.push('Deadline inom en vecka');
 
-    if (event.event_type === 'exam') reasons.push('Tenta prioriteras högt');
-    else if (event.event_type === 'assignment' && hp >= 3) reasons.push('Uppgift med hög omfattning');
-    else if (event.event_type === 'assignment') reasons.push('Uppgift med deadline');
+    // Type ranking explanation
+    if (event.event_type === 'exam') reasons.push('Tenta prioriteras högst vid samma deadline');
+    else if (event.event_type === 'assignment') reasons.push('Uppgifter rankas över labbar vid samma deadline');
     else if (event.event_type === 'lab') reasons.push('Labb kräver förberedelse');
 
     if (event.course_code) reasons.push(`Kopplad till kursen ${event.course_code}`);
-    if (hp > 0) reasons.push(`${hp} HP gör momentet viktigare`);
+    if (hp > 0) reasons.push(`${hp} HP gör momentet större`);
+    if (blocking) reasons.push(blocking);
     if (linkedSubtask && !linkedSubtask.completed) reasons.push('Kopplad till ett kursmoment som inte är avklarat');
     if (event.status && event.status !== 'complete') reasons.push('Inte avklarad ännu');
     return reasons;
