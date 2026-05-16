@@ -979,6 +979,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               newSubtaskText={newSubtaskText}
               newSubtaskDate={newSubtaskDate}
               newSubtaskHp={newSubtaskHp}
+              newSubtaskType={newSubtaskType}
               blocksMap={blocksMap}
               courseNameMap={courseNameMap}
               getPrereqStatus={getPrereqStatus}
@@ -988,6 +989,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               setNewSubtaskText={setNewSubtaskText}
               setNewSubtaskDate={setNewSubtaskDate}
               setNewSubtaskHp={setNewSubtaskHp}
+              setNewSubtaskType={setNewSubtaskType}
               onToggleSubtask={toggleSubtask}
               onDeleteSubtask={(s) => setPendingSubtaskDelete(s)}
               onAddSubtask={handleAddSubtask}
