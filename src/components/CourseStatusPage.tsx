@@ -685,6 +685,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       return;
     }
     setCourses(prev => prev.filter(c => c.id !== courseId));
+    initialStatusesRef.current.delete(courseId);
     setSubtasks(prev => prev.filter(s => s.course_id !== courseId));
     toast.success(`${courseName} borttagen`);
   };
