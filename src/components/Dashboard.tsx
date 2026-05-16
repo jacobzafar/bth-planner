@@ -354,9 +354,11 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     else if (h < 168) reasons.push('Deadline inom en vecka');
 
     // Type ranking explanation
-    if (event.event_type === 'exam') reasons.push('Tenta prioriteras högst vid samma deadline');
-    else if (event.event_type === 'assignment') reasons.push('Uppgifter rankas över labbar vid samma deadline');
+    if (event.event_type === 'exam') reasons.push('Tenta – viktigt att hinna plugga inför');
+    else if (event.event_type === 'assignment') reasons.push('Uppgift som behöver lämnas in');
     else if (event.event_type === 'lab') reasons.push('Labb kräver förberedelse');
+    else if (event.event_type === 'seminar') reasons.push('Seminarium – bra att förbereda sig inför');
+    else if (event.event_type === 'lecture') reasons.push('Föreläsning att hålla koll på');
 
     if (event.course_code) reasons.push(`Kopplad till kursen ${event.course_code}`);
     if (hp > 0) reasons.push(`${hp} HP gör momentet större`);
