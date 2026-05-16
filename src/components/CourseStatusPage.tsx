@@ -557,6 +557,21 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [newSubtaskDate, setNewSubtaskDate] = useState<Record<string, string>>({});
   const [newSubtaskHp, setNewSubtaskHp] = useState<Record<string, string>>({});
 
+  // Display-only filters
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterUnmetOnly, setFilterUnmetOnly] = useState(false);
+
+  const resetFilters = () => {
+    setFilterSearch('');
+    setFilterYear('all');
+    setFilterStatus('all');
+    setFilterUnmetOnly(false);
+  };
+  const hasActiveFilters =
+    filterSearch.trim() !== '' || filterYear !== 'all' || filterStatus !== 'all' || filterUnmetOnly;
+
   const programTemplate = useMemo(() => {
     if (!programName) return null;
     return bthPrograms.find(p => p.name === programName) || null;
@@ -746,7 +761,26 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     );
   }
 
-  const sortedYearEntries = Object.entries(groupedByYear).sort(([a], [b]) => Number(a) - Number(b));
+  const filteredCourses = useMemo(() => {
+    const q = filterSearch.trim().toLowerCase();
+    return courses.filter(c => {
+      if (q && !c.course_code.toLowerCase().includes(q) && !c.course_name.toLowerCase().includes(q)) return false;
+      if (filterYear !== 'all' && String(c.year) !== filterYear) return false;
+      if (filterStatus !== 'all' && c.status !== filterStatus) return false;
+      if (filterUnmetOnly) {
+        const ps = getPrereqStatus(c.course_code);
+        if (!ps || ps.allMet) return false;
+      }
+      return true;
+    });
+  }, [courses, filterSearch, filterYear, filterStatus, filterUnmetOnly, prereqMap]);
+
+  const filteredGroupedByYear = useMemo(() => groupCoursesByYear(filteredCourses), [filteredCourses]);
+  const sortedYearEntries = Object.entries(filteredGroupedByYear).sort(([a], [b]) => Number(a) - Number(b));
+  const availableYears = useMemo(
+    () => Array.from(new Set(courses.map(c => c.year))).sort((a, b) => a - b),
+    [courses],
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -766,11 +800,74 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
             onAddCourse={handleAddCourse}
           />
         </div>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-muted-foreground mb-4">
           Markera status och hantera delmoment för varje kurs.
         </p>
 
+        {/* Display-only filters */}
+        <div className="mb-6 space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Sök kurskod eller kursnamn..."
+              value={filterSearch}
+              onChange={e => setFilterSearch(e.target.value)}
+              className="pl-10"
+            />
+            {filterSearch && (
+              <button
+                type="button"
+                onClick={() => setFilterSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Rensa sökning"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-[120px] h-9"><SelectValue placeholder="År" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla år</SelectItem>
+                {availableYears.map(y => (
+                  <SelectItem key={y} value={String(y)}>År {y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla statusar</SelectItem>
+                <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
+                <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
+                <SelectItem value="completed">✅ Helt avklarad</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant={filterUnmetOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterUnmetOnly(v => !v)}
+              className="h-9 gap-1.5"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              Endast ouppfyllda förkunskaper
+            </Button>
+            {hasActiveFilters && (
+              <Button type="button" variant="ghost" size="sm" onClick={resetFilters} className="h-9 gap-1.5">
+                <X className="h-3.5 w-3.5" /> Rensa filter
+              </Button>
+            )}
+          </div>
+        </div>
+
         <TooltipProvider>
+          {sortedYearEntries.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Inga kurser matchar filtren.
+            </p>
+          )}
           {sortedYearEntries.map(([year, yearCourses]) => (
             <YearSection
               key={year}
