@@ -761,7 +761,26 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     );
   }
 
-  const sortedYearEntries = Object.entries(groupedByYear).sort(([a], [b]) => Number(a) - Number(b));
+  const filteredCourses = useMemo(() => {
+    const q = filterSearch.trim().toLowerCase();
+    return courses.filter(c => {
+      if (q && !c.course_code.toLowerCase().includes(q) && !c.course_name.toLowerCase().includes(q)) return false;
+      if (filterYear !== 'all' && String(c.year) !== filterYear) return false;
+      if (filterStatus !== 'all' && c.status !== filterStatus) return false;
+      if (filterUnmetOnly) {
+        const ps = getPrereqStatus(c.course_code);
+        if (!ps || ps.allMet) return false;
+      }
+      return true;
+    });
+  }, [courses, filterSearch, filterYear, filterStatus, filterUnmetOnly, prereqMap]);
+
+  const filteredGroupedByYear = useMemo(() => groupCoursesByYear(filteredCourses), [filteredCourses]);
+  const sortedYearEntries = Object.entries(filteredGroupedByYear).sort(([a], [b]) => Number(a) - Number(b));
+  const availableYears = useMemo(
+    () => Array.from(new Set(courses.map(c => c.year))).sort((a, b) => a - b),
+    [courses],
+  );
 
   return (
     <div className="min-h-screen bg-background">
