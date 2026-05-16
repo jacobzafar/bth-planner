@@ -1,0 +1,1 @@
+ALTER TABLE public.study_events ADD COLUMN IF NOT EXISTS hp numeric DEFAULT 0;

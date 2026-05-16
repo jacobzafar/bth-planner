@@ -29,6 +29,7 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
   const [dueDate, setDueDate] = useState('');
   const [dueTime, setDueTime] = useState('23:59');
   const [description, setDescription] = useState('');
+  const [hp, setHp] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -47,6 +48,15 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
     if (dueDate < today) {
       toast.warning('Varning: Datumet har redan passerat');
     }
+    let hpValue: number | null = null;
+    if (hp.trim()) {
+      const parsed = parseFloat(hp.replace(',', '.'));
+      if (isNaN(parsed) || parsed < 0) {
+        toast.error('Ogiltigt HP-värde');
+        return;
+      }
+      hpValue = parsed;
+    }
     setLoading(true);
     const { error } = await supabase.from('study_events').insert({
       user_id: userId,
@@ -57,6 +67,7 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
       due_time: dueTime || null,
       description: description.trim() || null,
       status: 'upcoming',
+      hp: hpValue ?? 0,
     });
 
     if (error) {
@@ -108,10 +119,12 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="exam">📋 Tenta</SelectItem>
                   <SelectItem value="assignment">📝 Uppgift</SelectItem>
                   <SelectItem value="lab">🧪 Labb</SelectItem>
-                  <SelectItem value="exam">📋 Tenta</SelectItem>
-                  <SelectItem value="other">📌 Övrigt</SelectItem>
+                  <SelectItem value="seminar">💬 Seminarium</SelectItem>
+                  <SelectItem value="lecture">🎓 Föreläsning</SelectItem>
+                  <SelectItem value="other">📌 Annat</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -125,6 +138,23 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
                 <Label htmlFor="dueTime">Tid</Label>
                 <Input id="dueTime" type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} />
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="hp">Omfattning / HP</Label>
+              <Input
+                id="hp"
+                type="number"
+                step="0.5"
+                min="0"
+                inputMode="decimal"
+                value={hp}
+                onChange={e => setHp(e.target.value)}
+                placeholder="t.ex. 1.5"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Används för att prioritera större moment högre.
+              </p>
             </div>
 
             <div>

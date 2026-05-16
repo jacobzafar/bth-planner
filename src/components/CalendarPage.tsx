@@ -32,6 +32,7 @@ interface StudyEvent {
   course_code: string | null;
   due_time: string | null;
   description: string | null;
+  hp: number | null;
 }
 
 interface UserCourse {
@@ -41,10 +42,12 @@ interface UserCourse {
 }
 
 const TYPE_LABEL: Record<string, string> = {
+  exam: '📋 Tenta',
   assignment: '📝 Uppgift',
   lab: '🧪 Labb',
-  exam: '📋 Tenta',
-  other: '📌 Övrigt',
+  seminar: '💬 Seminarium',
+  lecture: '🎓 Föreläsning',
+  other: '📌 Annat',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -69,11 +72,12 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
   const [fDate, setFDate] = useState('');
   const [fTime, setFTime] = useState('');
   const [fDesc, setFDesc] = useState('');
+  const [fHp, setFHp] = useState('');
 
   const loadEvents = useCallback(async () => {
     const { data } = await supabase
       .from('study_events')
-      .select('id, title, event_type, due_date, status, course_code, due_time, description')
+      .select('id, title, event_type, due_date, status, course_code, due_time, description, hp')
       .eq('user_id', userId);
     setEvents((data || []) as StudyEvent[]);
   }, [userId]);
@@ -125,6 +129,7 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
     setFDate(selected.due_date);
     setFTime(selected.due_time || '');
     setFDesc(selected.description || '');
+    setFHp(selected.hp && selected.hp > 0 ? String(selected.hp) : '');
     setEditing(true);
   };
 
@@ -145,6 +150,12 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
     e.preventDefault();
     if (!selected) return;
     if (!fTitle.trim() || !fDate) { toast.error('Fyll i alla obligatoriska fält'); return; }
+    let hpValue = 0;
+    if (fHp.trim()) {
+      const parsed = parseFloat(fHp.replace(',', '.'));
+      if (isNaN(parsed) || parsed < 0) { toast.error('Ogiltigt HP-värde'); return; }
+      hpValue = parsed;
+    }
     setSaving(true);
     const updates = {
       title: fTitle.trim(),
@@ -153,6 +164,7 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
       due_date: fDate,
       due_time: fTime || null,
       description: fDesc.trim() || null,
+      hp: hpValue,
     };
     const { error } = await supabase.from('study_events').update(updates).eq('id', selected.id);
     setSaving(false);
@@ -257,6 +269,9 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
                 <DialogDescription className="flex flex-wrap gap-2 pt-2">
                   <Badge variant="secondary">{TYPE_LABEL[selected.event_type] || selected.event_type}</Badge>
                   {selected.course_code && <Badge variant="outline">{selected.course_code}</Badge>}
+                  {selected.hp && selected.hp > 0 ? (
+                    <Badge variant="outline">{selected.hp} HP</Badge>
+                  ) : null}
                   <Badge variant={selected.status === 'complete' ? 'default' : 'secondary'}>
                     {STATUS_LABEL[selected.status] || selected.status}
                   </Badge>
@@ -327,10 +342,12 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
                 <Select value={fType} onValueChange={setFType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="exam">📋 Tenta</SelectItem>
                     <SelectItem value="assignment">📝 Uppgift</SelectItem>
                     <SelectItem value="lab">🧪 Labb</SelectItem>
-                    <SelectItem value="exam">📋 Tenta</SelectItem>
-                    <SelectItem value="other">📌 Övrigt</SelectItem>
+                    <SelectItem value="seminar">💬 Seminarium</SelectItem>
+                    <SelectItem value="lecture">🎓 Föreläsning</SelectItem>
+                    <SelectItem value="other">📌 Annat</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -343,6 +360,22 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
                   <Label htmlFor="e-time">Tid</Label>
                   <Input id="e-time" type="time" value={fTime} onChange={e => setFTime(e.target.value)} />
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="e-hp">Omfattning / HP</Label>
+                <Input
+                  id="e-hp"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  inputMode="decimal"
+                  value={fHp}
+                  onChange={e => setFHp(e.target.value)}
+                  placeholder="t.ex. 1.5"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Används för att prioritera större moment högre.
+                </p>
               </div>
               <div>
                 <Label htmlFor="e-desc">Beskrivning</Label>
