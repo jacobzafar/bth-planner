@@ -94,11 +94,11 @@ export default function Index() {
   return (
     <AppLayout programName={pName} onLogout={handleLogout}>
       <Routes>
-        <Route path="/" element={<Dashboard userId={session.user.id} totalProgramHp={totalProgramHp} />} />
+        <Route path="/" element={<Dashboard userId={session.user.id} totalProgramHp={totalProgramHp} startYear={profileData?.start_year ?? null} />} />
         <Route path="/kurser" element={<CourseStatusPage userId={session.user.id} programName={pName} />} />
         <Route path="/add-event" element={<AddEventPage userId={session.user.id} />} />
         <Route path="/kalender" element={<CalendarPage userId={session.user.id} />} />
-        <Route path="/installningar" element={<SettingsPage userId={session.user.id} email={session.user.email} programName={pName} startYear={profileData?.start_year || 0} onLogout={handleLogout} />} />
+        <Route path="/installningar" element={<SettingsPage userId={session.user.id} email={session.user.email} programName={pName} startYear={profileData?.start_year || 0} onLogout={handleLogout} onResetPlan={() => checkProfile(session.user.id)} />} />
       </Routes>
     </AppLayout>
   );
