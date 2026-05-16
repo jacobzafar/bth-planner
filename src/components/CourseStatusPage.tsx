@@ -702,7 +702,9 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       return;
     }
     if (data) {
-      setCourses(prev => [...prev, data as UserCourse]);
+      const newCourse = data as UserCourse;
+      setCourses(prev => [...prev, newCourse]);
+      initialStatusesRef.current.set(newCourse.id, newCourse.status);
       toast.success(`${course.name} tillagd i år ${year}`);
     }
   };
