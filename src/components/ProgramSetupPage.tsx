@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GraduationCap, ChevronRight, Search } from 'lucide-react';
+import { GraduationCap, ChevronRight, Search, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { bthPrograms } from '@/lib/programs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { estimateStudyYear } from '@/lib/studyYear';
 
 interface ProgramSetupPageProps {
   userId: string;
@@ -92,8 +93,8 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
         <h2 className="font-heading text-2xl font-bold text-foreground mb-2">Välj ditt program</h2>
         <p className="text-muted-foreground mb-6">Välj ditt BTH-program och det år du började studera.</p>
 
-        <div className="mb-4">
-          <Label>Startår</Label>
+        <div className="mb-2">
+          <Label>Startår *</Label>
           <Select value={startYear} onValueChange={setStartYear}>
             <SelectTrigger>
               <SelectValue placeholder="Välj startår..." />
@@ -104,7 +105,36 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground mt-1.5 flex items-start gap-1.5">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              Startåret används för att uppskatta vilket studieår du går i och för att upptäcka
+              kurser som kan spärras av ej avklarade förkunskapskrav.
+            </span>
+          </p>
         </div>
+
+        {selected !== null && startYear && (() => {
+          const program = bthPrograms[selected];
+          const totalHp = program.courses.reduce((s, c) => s + c.hp, 0);
+          const est = estimateStudyYear(Number.parseInt(startYear, 10));
+          return (
+            <Card className="mb-4 border-primary/40 bg-primary/5">
+              <CardContent className="p-4 space-y-1">
+                <p className="text-sm font-semibold text-foreground">{program.name}</p>
+                <div className="text-xs text-muted-foreground grid grid-cols-2 gap-y-1">
+                  <span>Startår</span><span className="text-foreground text-right">{startYear}</span>
+                  <span>Uppskattat studieår</span>
+                  <span className="text-foreground text-right">
+                    {est.uncertain ? est.label : `År ${est.year} (${est.semester === 1 ? 'HT' : 'VT'})`}
+                  </span>
+                  <span>Antal kurser</span><span className="text-foreground text-right">{program.courses.length}</span>
+                  <span>Totalt HP</span><span className="text-foreground text-right">{totalHp}</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
