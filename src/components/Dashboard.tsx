@@ -126,8 +126,24 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     return map;
   }, [programName]);
 
-  const completedHp = courses.filter(c => c.status === 'completed').reduce((sum, c) => sum + c.hp, 0);
-  const partlyHp = courses.filter(c => c.status === 'partly').reduce((sum, c) => sum + c.hp, 0);
+  // Avoid double counting: completed courses count full HP; for non-completed
+  // courses, count completed delmoment HP as "partly" (capped by course HP).
+  const completedSubHpByCourse = new Map<string, number>();
+  for (const s of subtasks) {
+    if (s.completed && Number(s.hp) > 0) {
+      completedSubHpByCourse.set(s.course_id, (completedSubHpByCourse.get(s.course_id) || 0) + Number(s.hp));
+    }
+  }
+  let completedHp = 0;
+  let partlyHp = 0;
+  for (const c of courses) {
+    if (c.status === 'completed') {
+      completedHp += c.hp;
+    } else {
+      const subDone = completedSubHpByCourse.get(c.id) || 0;
+      if (subDone > 0) partlyHp += Math.min(c.hp, subDone);
+    }
+  }
   const totalHp = totalProgramHp || courses.reduce((sum, c) => sum + c.hp, 0);
   const progressPercent = totalHp > 0 ? Math.round((completedHp / totalHp) * 100) : 0;
 
