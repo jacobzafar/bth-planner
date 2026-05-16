@@ -17,10 +17,13 @@ import { sv } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
+import RiskOverview from '@/components/RiskOverview';
 
 interface DashboardProps {
   userId: string;
   totalProgramHp?: number;
+  programName?: string | null;
+  startYear?: number | null;
 }
 
 interface StudyEvent {
