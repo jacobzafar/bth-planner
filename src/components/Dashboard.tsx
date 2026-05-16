@@ -98,8 +98,8 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
   const fetchData = async () => {
     const [eventsRes, coursesRes, subtasksRes, profileRes] = await Promise.all([
       supabase.from('study_events').select('*').eq('user_id', userId).order('due_date', { ascending: true }),
-      supabase.from('user_courses').select('status, hp, year, course_code, course_name').eq('user_id', userId),
-      supabase.from('course_subtasks').select('id, event_id, hp, completed').eq('user_id', userId),
+      supabase.from('user_courses').select('id, status, hp, year, course_code, course_name').eq('user_id', userId),
+      supabase.from('course_subtasks').select('id, course_id, event_id, hp, completed').eq('user_id', userId),
       supabase.from('profiles').select('program_name').eq('user_id', userId).maybeSingle(),
     ]);
 
