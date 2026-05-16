@@ -892,13 +892,13 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               courseNameMap={courseNameMap}
               getPrereqStatus={getPrereqStatus}
               onUpdateStatus={updateStatus}
-              onDelete={handleDelete}
+              onDelete={(id, name) => setPendingCourseDelete({ id, name })}
               onToggleExpanded={toggleExpanded}
               setNewSubtaskText={setNewSubtaskText}
               setNewSubtaskDate={setNewSubtaskDate}
               setNewSubtaskHp={setNewSubtaskHp}
               onToggleSubtask={toggleSubtask}
-              onDeleteSubtask={deleteSubtask}
+              onDeleteSubtask={(s) => setPendingSubtaskDelete(s)}
               onAddSubtask={handleAddSubtask}
             />
           ))}
