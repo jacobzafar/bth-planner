@@ -538,6 +538,8 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
         programName={programName}
         startYear={startYear ?? null}
         compact
+        upcomingEventsCount={upcomingEvents.length}
+        unfinishedSubtasksCount={subtasks.filter(s => !s.completed).length}
       />
 
       {/* Detail modal */}
