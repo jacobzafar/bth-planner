@@ -413,12 +413,14 @@ interface CourseCardProps {
   newText: string;
   newDate: string;
   newHp: string;
+  newType: SubtaskType;
   onUpdateStatus: (id: string, s: CourseStatus) => void;
   onDelete: (id: string, name: string) => void;
   onToggleExpanded: (id: string) => void;
   setNewText: (v: string) => void;
   setNewDate: (v: string) => void;
   setNewHp: (v: string) => void;
+  setNewType: (v: SubtaskType) => void;
   onToggleSubtask: (s: Subtask) => void;
   onDeleteSubtask: (s: Subtask) => void;
   onAddSubtask: (courseId: string) => void;
@@ -427,9 +429,9 @@ interface CourseCardProps {
 function CourseCard(props: CourseCardProps) {
   const {
     course, prereqStatus, blocks, courseNameMap, courseSubtasks, isExpanded,
-    newText, newDate, newHp,
+    newText, newDate, newHp, newType,
     onUpdateStatus, onDelete, onToggleExpanded,
-    setNewText, setNewDate, setNewHp,
+    setNewText, setNewDate, setNewHp, setNewType,
     onToggleSubtask, onDeleteSubtask, onAddSubtask,
   } = props;
 
@@ -487,8 +489,8 @@ function CourseCard(props: CourseCardProps) {
           courseSubtasks={courseSubtasks}
           isExpanded={isExpanded}
           onToggleExpanded={onToggleExpanded}
-          newText={newText} newDate={newDate} newHp={newHp}
-          setNewText={setNewText} setNewDate={setNewDate} setNewHp={setNewHp}
+          newText={newText} newDate={newDate} newHp={newHp} newType={newType}
+          setNewText={setNewText} setNewDate={setNewDate} setNewHp={setNewHp} setNewType={setNewType}
           onToggleSubtask={onToggleSubtask}
           onDeleteSubtask={onDeleteSubtask}
           onAddSubtask={onAddSubtask}
