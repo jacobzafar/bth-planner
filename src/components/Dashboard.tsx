@@ -144,13 +144,61 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const now = new Date();
   const upcomingEvents = events.filter(e => e.status !== 'complete' && new Date(e.due_date) >= now);
 
+  // Helpers used by both scoring and reasons
+  const getHpForEvent = (event: StudyEvent): number => {
+    if (event.hp && event.hp > 0) return Number(event.hp);
+    const linked = subtasks.find(s => s.event_id === event.id);
+    return linked ? Number(linked.hp) : 0;
+  };
+
+  // Type weights: exam > assignment > lab > seminar/lecture/other
+  const TYPE_WEIGHT: Record<string, number> = {
+    exam: 30, assignment: 20, lab: 12, seminar: 2, lecture: 2, other: 2,
+  };
+
+  const scoreEvent = (event: StudyEvent): number => {
+    const due = new Date(`${event.due_date}T${event.due_time || '23:59'}`);
+    const h = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
+    let score = 0;
+    // Deadline proximity (dominant signal)
+    if (h < 0) score += 120;
+    else if (h < 24) score += 100;
+    else if (h < 72) score += 70;
+    else if (h < 168) score += 50;
+    else if (h < 336) score += 30;
+    else score += 10;
+    // Type weight (strong tie-breaker at same deadline; max diff exam↔lab = 18)
+    score += TYPE_WEIGHT[event.event_type] ?? 2;
+    // HP / scope — capped so it can't flip exam vs lab at same deadline
+    const hp = getHpForEvent(event);
+    score += Math.min(hp * 2, 12);
+    // Blocking course bonus
+    if (event.course_code && (blockingMap.get(event.course_code)?.length || 0) > 0) {
+      score += 8;
+    }
+    // Linked subtask not done
+    const sub = subtasks.find(s => s.event_id === event.id);
+    if (sub && !sub.completed) score += 3;
+    return score;
+  };
+
   const FOCUS_TYPES = new Set(['exam', 'assignment', 'lab']);
-  const focusEvents = upcomingEvents.filter(e => {
-    if (FOCUS_TYPES.has(e.event_type)) return true;
-    // seminar/lecture/other only if HP > 0
-    const hp = (e.hp && e.hp > 0) ? Number(e.hp) : (subtasks.find(s => s.event_id === e.id)?.hp || 0);
-    return Number(hp) > 0;
-  });
+  const focusEvents = upcomingEvents
+    .filter(e => {
+      if (FOCUS_TYPES.has(e.event_type)) return true;
+      // seminar/lecture/other only if HP > 0 or linked to a course moment
+      if (getHpForEvent(e) > 0) return true;
+      return false;
+    })
+    .map(e => ({ event: e, score: scoreEvent(e) }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const da = new Date(`${a.event.due_date}T${a.event.due_time || '23:59'}`).getTime();
+      const db = new Date(`${b.event.due_date}T${b.event.due_time || '23:59'}`).getTime();
+      if (da !== db) return da - db;
+      return (TYPE_WEIGHT[b.event.event_type] ?? 0) - (TYPE_WEIGHT[a.event.event_type] ?? 0);
+    })
+    .map(x => x.event);
 
   const thisWeek = upcomingEvents.filter(e => {
     const diff = (new Date(e.due_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
