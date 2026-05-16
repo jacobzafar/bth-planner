@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, ShieldAlert, BookOpen, Flame } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, BookOpen, Lock } from 'lucide-react';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
 
@@ -19,6 +19,14 @@ interface RiskOverviewProps {
   compact?: boolean;
 }
 
+const MAX_NAME_LEN = 32;
+
+function fmtCourse(code: string, name?: string) {
+  if (!name) return code;
+  if (name.length <= MAX_NAME_LEN) return `${name} (${code})`;
+  return `${code} – ${name.slice(0, MAX_NAME_LEN).trim()}…`;
+}
+
 export default function RiskOverview({ courses, programName, startYear, compact = true }: RiskOverviewProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -27,11 +35,13 @@ export default function RiskOverview({ courses, programName, startYear, compact 
     [programName],
   );
 
-  const { prereqMap, blocksMap } = useMemo(() => {
+  const { prereqMap, blocksMap, templateNameMap } = useMemo(() => {
     const prereq = new Map<string, string[]>();
     const blocks = new Map<string, string[]>();
+    const names = new Map<string, string>();
     if (programTemplate) {
       for (const c of programTemplate.courses) {
+        names.set(c.code, c.name);
         if (c.prerequisites && c.prerequisites.length) {
           prereq.set(c.code, c.prerequisites);
           for (const p of c.prerequisites) {
@@ -42,87 +52,150 @@ export default function RiskOverview({ courses, programName, startYear, compact 
         }
       }
     }
-    return { prereqMap: prereq, blocksMap: blocks };
+    return { prereqMap: prereq, blocksMap: blocks, templateNameMap: names };
   }, [programTemplate]);
 
-  const statusByCode = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const c of courses) m.set(c.course_code, c.status);
+  const courseByCode = useMemo(() => {
+    const m = new Map<string, CourseRow>();
+    for (const c of courses) m.set(c.course_code, c);
     return m;
   }, [courses]);
+
+  const nameOf = (code: string) =>
+    courseByCode.get(code)?.course_name || templateNameMap.get(code);
 
   const estimate = startYear ? estimateStudyYear(startYear) : null;
   const currentStudyYear = estimate?.year ?? 1;
 
+  // "Ej avklarade kurser" – courses from previous/current years not completed
   const overdueCourses = courses.filter(
     c => c.year <= currentStudyYear && c.status !== 'completed',
   );
 
-  const unmetPrereqCourses = courses
+  // Helper: classify a prereq's fulfillment
+  // completed → met; partly → soft (started but not done); not_started/missing → hard block
+  type PrereqKind = 'met' | 'soft' | 'hard';
+  const prereqKind = (code: string): PrereqKind => {
+    const s = courseByCode.get(code)?.status;
+    if (s === 'completed') return 'met';
+    if (s === 'partly') return 'soft';
+    return 'hard';
+  };
+
+  type CourseAnalysis = {
+    course: CourseRow;
+    hardUnmet: string[]; // prereqs that are not_started/missing
+    softUnmet: string[]; // prereqs that are partly
+  };
+
+  const analyses: CourseAnalysis[] = courses
     .filter(c => c.status !== 'completed')
     .map(c => {
       const prereqs = prereqMap.get(c.course_code) || [];
-      const unmet = prereqs.filter(p => statusByCode.get(p) !== 'completed');
-      return { course: c, unmet };
-    })
-    .filter(x => x.unmet.length > 0);
-
-  // High risk: courses not done that block other not-done courses
-  const blockingNotDone = courses
-    .filter(c => c.status !== 'completed')
-    .map(c => {
-      const blocks = (blocksMap.get(c.course_code) || []).filter(b => statusByCode.get(b) !== 'completed');
-      return { course: c, blocks };
-    })
-    .filter(x => x.blocks.length > 0);
-
-  // Top priorities for "Viktigast just nu":
-  // 1) High risk (blocking) — phrase as "X spärrar Y"
-  // 2) Upcoming with unmet prereqs — phrase as "X kräver Y"
-  type Top = { key: string; text: string; helper: string };
-  const tops: Top[] = [];
-  blockingNotDone.slice(0, 5).forEach(({ course, blocks }) => {
-    tops.push({
-      key: `t-block-${course.course_code}`,
-      text: `${course.course_code} spärrar ${blocks[0]}${blocks.length > 1 ? ` +${blocks.length - 1}` : ''}`,
-      helper: 'Prioritera moment i denna kurs',
+      const hardUnmet: string[] = [];
+      const softUnmet: string[] = [];
+      for (const p of prereqs) {
+        const k = prereqKind(p);
+        if (k === 'hard') hardUnmet.push(p);
+        else if (k === 'soft') softUnmet.push(p);
+      }
+      return { course: c, hardUnmet, softUnmet };
     });
-  });
-  unmetPrereqCourses.slice(0, 5).forEach(({ course, unmet }) => {
-    tops.push({
-      key: `t-prereq-${course.course_code}`,
-      text: `${course.course_code} kräver ${unmet[0]}${unmet.length > 1 ? ` +${unmet.length - 1}` : ''}`,
-      helper: 'Kommande kurs har ej uppfyllda förkunskaper',
-    });
-  });
-  const topItems = tops.slice(0, 3);
 
-  // Recommendation line based on top blocking courses
-  const recCodes = blockingNotDone.slice(0, 2).map(b => b.course.course_code);
-  const recommendation = recCodes.length > 0
-    ? `Rekommendation: Börja med ${recCodes.join(' och ')} eftersom de påverkar kommande kurser.`
-    : null;
+  // "Spärrade kurser" – courses with at least one hard-unmet prereq (cannot fully start)
+  const blockedCourses = analyses.filter(a => a.hardUnmet.length > 0);
+
+  // "Saknade förkunskaper" – upcoming courses (future years) with any unmet prereq (hard or soft)
+  const upcomingMissing = analyses.filter(
+    a => a.course.year > currentStudyYear && (a.hardUnmet.length > 0 || a.softUnmet.length > 0),
+  );
+
+  // Priority score for blocked items (lower year = higher priority)
+  const priorityScore = (a: CourseAnalysis) => {
+    const diff = a.course.year - currentStudyYear; // negative = overdue
+    // Heavy weight for overdue/current, plus hard count
+    const base = diff <= 0 ? 0 : diff; // 0 for past/current, increases for future
+    return base * 10 - a.hardUnmet.length;
+  };
+
+  const sortedBlocked = [...blockedCourses].sort((a, b) => priorityScore(a) - priorityScore(b));
+
+  // Build top recommendations (2-3 actionable items)
+  type Rec = { key: string; text: string; helper: string };
+  const recs: Rec[] = [];
+
+  for (const a of sortedBlocked) {
+    if (recs.length >= 3) break;
+    const blocked = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
+    const firstPrereq = a.hardUnmet[0];
+    const prereqLabel = fmtCourse(firstPrereq, nameOf(firstPrereq));
+    const more = a.hardUnmet.length > 1 ? ` (+${a.hardUnmet.length - 1})` : '';
+    const isSoon = a.course.year <= currentStudyYear;
+    recs.push({
+      key: `rec-block-${a.course.course_code}`,
+      text: `Börja med ${prereqLabel}${more} eftersom den krävs för ${blocked}`,
+      helper: isSoon
+        ? 'Den här spärren påverkar en kurs du borde läsa nu'
+        : 'Prioritera att nå förkunskapskraven',
+    });
+  }
+
+  if (recs.length < 3) {
+    const sortedUpcoming = [...upcomingMissing].sort((a, b) => a.course.year - b.course.year);
+    for (const a of sortedUpcoming) {
+      if (recs.length >= 3) break;
+      if (recs.some(r => r.key.endsWith(a.course.course_code))) continue;
+      const courseLabel = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
+      const missing = [...a.hardUnmet, ...a.softUnmet];
+      const first = missing[0];
+      const more = missing.length > 1 ? ` (+${missing.length - 1})` : '';
+      recs.push({
+        key: `rec-up-${a.course.course_code}`,
+        text: `${courseLabel} kräver ${fmtCourse(first, nameOf(first))}${more}`,
+        helper: 'Kommande kurs med saknade förkunskaper',
+      });
+    }
+  }
 
   // Grouped expanded lists
-  const highRiskList = blockingNotDone.map(({ course, blocks }) => ({
-    key: `h-${course.course_code}`,
-    text: `${course.course_code} spärrar ${blocks.slice(0, 3).join(', ')}${blocks.length > 3 ? ` +${blocks.length - 3}` : ''}`,
-  }));
-  const prereqList = unmetPrereqCourses.map(({ course, unmet }) => ({
-    key: `p-${course.course_code}`,
-    text: `${course.course_code} kräver ${unmet.slice(0, 3).join(', ')}${unmet.length > 3 ? ` +${unmet.length - 3}` : ''}`,
-  }));
-  // Other risks: overdue not in highRisk and not in prereqList
-  const highRiskCodes = new Set(blockingNotDone.map(b => b.course.course_code));
-  const prereqCodes = new Set(unmetPrereqCourses.map(p => p.course.course_code));
-  const otherList = overdueCourses
-    .filter(c => !highRiskCodes.has(c.course_code) && !prereqCodes.has(c.course_code))
+  const blockedList = sortedBlocked.map(a => {
+    const blocked = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
+    const items = a.hardUnmet.slice(0, 3).map(p => fmtCourse(p, nameOf(p))).join(', ');
+    const more = a.hardUnmet.length > 3 ? ` +${a.hardUnmet.length - 3}` : '';
+    return {
+      key: `b-${a.course.course_code}`,
+      text: `${blocked} – kräver ${items}${more}`,
+    };
+  });
+
+  const upcomingList = upcomingMissing
+    .filter(a => !blockedCourses.some(b => b.course.course_code === a.course.course_code))
+    .map(a => {
+      const courseLabel = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
+      const missing = [...a.hardUnmet, ...a.softUnmet];
+      const items = missing.slice(0, 3).map(p => fmtCourse(p, nameOf(p))).join(', ');
+      const more = missing.length > 3 ? ` +${missing.length - 3}` : '';
+      return {
+        key: `u-${a.course.course_code}`,
+        text: `${courseLabel} – kräver ${items}${more}`,
+      };
+    });
+
+  const blockedCodes = new Set(blockedCourses.map(a => a.course.course_code));
+  const upcomingCodes = new Set(upcomingMissing.map(a => a.course.course_code));
+  const overdueList = overdueCourses
+    .filter(c => !blockedCodes.has(c.course_code) && !upcomingCodes.has(c.course_code))
     .map(c => ({
       key: `o-${c.course_code}`,
-      text: `${c.course_code} från år ${c.year} är inte avklarad`,
+      text: `${fmtCourse(c.course_code, c.course_name)} – inte avklarad från år ${c.year}`,
     }));
 
-  const noRisks = overdueCourses.length === 0 && unmetPrereqCourses.length === 0 && blockingNotDone.length === 0;
+  const noRisks =
+    overdueCourses.length === 0 &&
+    upcomingMissing.length === 0 &&
+    blockedCourses.length === 0;
+
+  const totalDetails = blockedList.length + upcomingList.length + overdueList.length;
 
   return (
     <Card>
@@ -147,29 +220,29 @@ export default function RiskOverview({ courses, programName, startYear, compact 
               <MetricCard
                 icon={<AlertTriangle className="h-4 w-4 text-warning" />}
                 label="Saknade förkunskaper"
-                value={unmetPrereqCourses.length}
-                emphasize={unmetPrereqCourses.length > 0}
+                value={upcomingMissing.length}
+                emphasize={upcomingMissing.length > 0}
               />
               <MetricCard
-                icon={<Flame className="h-4 w-4 text-destructive" />}
-                label="Hög risk"
-                value={blockingNotDone.length}
-                emphasize={blockingNotDone.length > 0}
+                icon={<Lock className="h-4 w-4 text-destructive" />}
+                label="Spärrade kurser"
+                value={blockedCourses.length}
+                emphasize={blockedCourses.length > 0}
               />
             </div>
 
-            {/* Viktigast just nu */}
-            {topItems.length > 0 && (
+            {/* Top recommendations */}
+            {recs.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  Viktigast just nu
+                  Rekommenderat just nu
                 </p>
                 <ul className="space-y-2">
-                  {topItems.map(t => (
+                  {recs.map(t => (
                     <li key={t.key} className="flex items-start gap-2">
                       <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm text-foreground font-medium">{t.text}</p>
+                        <p className="text-sm text-foreground font-medium leading-snug">{t.text}</p>
                         <p className="text-xs text-muted-foreground">{t.helper}</p>
                       </div>
                     </li>
@@ -178,25 +251,27 @@ export default function RiskOverview({ courses, programName, startYear, compact 
               </div>
             )}
 
-            {recommendation && (
-              <p className="text-xs text-muted-foreground border-l-2 border-warning/60 pl-2">
-                {recommendation}
-              </p>
-            )}
-
             {/* Expandable grouped details */}
-            {compact && (highRiskList.length + prereqList.length + otherList.length > topItems.length) && (
+            {compact && totalDetails > recs.length && (
               <>
                 {expanded && (
                   <div className="space-y-3 pt-1">
-                    {highRiskList.length > 0 && (
-                      <Group title="Hög risk" items={highRiskList} dotClass="bg-destructive" />
+                    {blockedList.length > 0 && (
+                      <Group title="Spärrade kurser" items={blockedList} dotClass="bg-destructive" />
                     )}
-                    {prereqList.length > 0 && (
-                      <Group title="Kommande kurser med saknade förkunskaper" items={prereqList} dotClass="bg-warning" />
+                    {upcomingList.length > 0 && (
+                      <Group
+                        title="Kommande kurser med saknade förkunskaper"
+                        items={upcomingList}
+                        dotClass="bg-warning"
+                      />
                     )}
-                    {otherList.length > 0 && (
-                      <Group title="Övriga risker" items={otherList} dotClass="bg-muted-foreground" />
+                    {overdueList.length > 0 && (
+                      <Group
+                        title="Ej avklarade kurser från tidigare/nuvarande år"
+                        items={overdueList}
+                        dotClass="bg-muted-foreground"
+                      />
                     )}
                   </div>
                 )}

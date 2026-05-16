@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
-import { GraduationCap, Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -549,7 +550,9 @@ function YearSection(props: YearSectionProps) {
 // ---------- Main page ----------
 
 export default function CourseStatusPage({ userId, programName }: CourseStatusPageProps) {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<UserCourse[]>([]);
+  const initialStatusesRef = useRef<Map<string, CourseStatus>>(new Map());
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -619,7 +622,11 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
         .order('created_at', { ascending: true }),
     ]);
 
-    if (coursesRes.data) setCourses(coursesRes.data as UserCourse[]);
+    if (coursesRes.data) {
+      const data = coursesRes.data as UserCourse[];
+      setCourses(data);
+      initialStatusesRef.current = new Map(data.map(c => [c.id, c.status]));
+    }
     if (subtasksRes.data) setSubtasks(subtasksRes.data as Subtask[]);
     setLoading(false);
   };
@@ -636,14 +643,33 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     });
   };
 
+  const isDirty = useMemo(
+    () => courses.some(c => initialStatusesRef.current.get(c.id) !== c.status),
+    [courses],
+  );
+
+  const resetStatusChanges = () => {
+    setCourses(prev =>
+      prev.map(c => {
+        const init = initialStatusesRef.current.get(c.id);
+        return init !== undefined ? { ...c, status: init } : c;
+      }),
+    );
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      for (const course of courses) {
+      const dirtyCourses = courses.filter(
+        c => initialStatusesRef.current.get(c.id) !== c.status,
+      );
+      for (const course of dirtyCourses) {
         const { error } = await supabase.from('user_courses').update({ status: course.status }).eq('id', course.id);
         if (error) throw error;
       }
+      initialStatusesRef.current = new Map(courses.map(c => [c.id, c.status]));
       toast.success('Kursstatus sparad!');
+      navigate('/');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Kunde inte spara';
       toast.error(message);
@@ -659,6 +685,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       return;
     }
     setCourses(prev => prev.filter(c => c.id !== courseId));
+    initialStatusesRef.current.delete(courseId);
     setSubtasks(prev => prev.filter(s => s.course_id !== courseId));
     toast.success(`${courseName} borttagen`);
   };
@@ -675,7 +702,9 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       return;
     }
     if (data) {
-      setCourses(prev => [...prev, data as UserCourse]);
+      const newCourse = data as UserCourse;
+      setCourses(prev => [...prev, newCourse]);
+      initialStatusesRef.current.set(newCourse.id, newCourse.status);
       toast.success(`${course.name} tillagd i år ${year}`);
     }
   };
@@ -794,7 +823,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   return (
     <div className="min-h-screen bg-background">
 
-      <main className="container max-w-2xl py-4 animate-slide-up">
+      <main className={`container max-w-2xl pt-10 pb-4 animate-slide-up ${isDirty ? 'pb-32 md:pb-24' : ''}`}>
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-heading text-2xl font-bold text-foreground">Dina kurser</h2>
           <AddCourseDialog
@@ -900,10 +929,21 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
           ))}
         </TooltipProvider>
 
-        <Button size="lg" onClick={handleSave} disabled={saving} className="w-full gap-2 text-base mt-4">
-          <Save className="h-4 w-4" /> {saving ? 'Sparar...' : 'Spara kursstatus'}
-        </Button>
       </main>
+
+      {isDirty && (
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-30 bg-card border-t shadow-lg">
+          <div className="container max-w-2xl py-3 flex items-center gap-3 flex-wrap">
+            <p className="text-sm text-foreground flex-1 min-w-[160px]">Du har osparade ändringar</p>
+            <Button variant="outline" size="sm" onClick={resetStatusChanges} disabled={saving} className="gap-1.5">
+              <RotateCcw className="h-4 w-4" /> Ångra
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Save className="h-4 w-4" /> {saving ? 'Sparar...' : 'Spara kursstatus'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <AlertDialog open={!!pendingCourseDelete} onOpenChange={(o) => !o && setPendingCourseDelete(null)}>
         <AlertDialogContent>
