@@ -622,7 +622,11 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
         .order('created_at', { ascending: true }),
     ]);
 
-    if (coursesRes.data) setCourses(coursesRes.data as UserCourse[]);
+    if (coursesRes.data) {
+      const data = coursesRes.data as UserCourse[];
+      setCourses(data);
+      initialStatusesRef.current = new Map(data.map(c => [c.id, c.status]));
+    }
     if (subtasksRes.data) setSubtasks(subtasksRes.data as Subtask[]);
     setLoading(false);
   };
