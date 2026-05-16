@@ -70,6 +70,18 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const [subtasks, setSubtasks] = useState<LinkedSubtask[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<StudyEvent | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // edit form state
+  const [fTitle, setFTitle] = useState('');
+  const [fCourse, setFCourse] = useState('');
+  const [fType, setFType] = useState('assignment');
+  const [fDate, setFDate] = useState('');
+  const [fTime, setFTime] = useState('');
+  const [fDesc, setFDesc] = useState('');
+  const [fHp, setFHp] = useState('');
+  const [fStatus, setFStatus] = useState('upcoming');
 
   useEffect(() => {
     fetchData();
@@ -78,7 +90,7 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
   const fetchData = async () => {
     const [eventsRes, coursesRes, subtasksRes] = await Promise.all([
       supabase.from('study_events').select('*').eq('user_id', userId).order('due_date', { ascending: true }),
-      supabase.from('user_courses').select('status, hp, year').eq('user_id', userId),
+      supabase.from('user_courses').select('status, hp, year, course_code, course_name').eq('user_id', userId),
       supabase.from('course_subtasks').select('id, event_id, hp, completed').eq('user_id', userId),
     ]);
 
