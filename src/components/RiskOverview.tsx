@@ -116,7 +116,7 @@ export default function RiskOverview({ courses, programName, startYear, compact 
   const highRiskCodes = new Set(blockingNotDone.map(b => b.course.course_code));
   const prereqCodes = new Set(unmetPrereqCourses.map(p => p.course.course_code));
   const otherList = overdueCourses
-    .filter(c => !highRiskCodes.has(c.course_code) && !prereqCodes.has(c.course.course_code))
+    .filter(c => !highRiskCodes.has(c.course_code) && !prereqCodes.has(c.course_code))
     .map(c => ({
       key: `o-${c.course_code}`,
       text: `${c.course_code} från år ${c.year} är inte avklarad`,
