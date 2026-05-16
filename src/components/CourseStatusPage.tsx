@@ -793,10 +793,6 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="container py-6 flex items-center gap-2">
-        <GraduationCap className="h-7 w-7 text-primary" />
-        <span className="font-heading font-bold text-xl text-foreground">BTH Studieplanerare</span>
-      </header>
 
       <main className="container max-w-2xl py-4 animate-slide-up">
         <div className="flex items-center justify-between mb-2">
