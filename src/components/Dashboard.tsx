@@ -236,7 +236,6 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     const hp = getEventHp(event);
     const typeName = TYPE_LABEL[event.event_type];
     const course = event.course_code;
-    const linkedSubtask = subtasks.find(s => s.event_id === event.id);
 
     if (h < 0 && course) return `Försenad – ${typeName?.toLowerCase() || 'händelse'} i ${course}`;
     if (h < 0) return 'Försenad deadline';
@@ -244,12 +243,11 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     if (event.event_type === 'exam' && h < 168 && course) return `Deadline snart – tenta i ${course}`;
     if (event.event_type === 'exam' && course) return `Tenta i ${course}`;
 
-    if (hp >= 3 && h < 168) return `Hög prioritet: ${hp} HP och deadline denna vecka`;
-    if (hp >= 3 && course) return `Stort moment (${hp} HP) i ${course}`;
+    if (hp >= 3) return course ? `Hög omfattning: ${hp} HP i ${course}` : `Hög omfattning: ${hp} HP`;
 
-    if (linkedSubtask && !linkedSubtask.completed) return 'Kopplad till kursmoment – ej avklarad';
+    if (event.event_type === 'lab' && h < 168 && course) return `Labb denna vecka i ${course}`;
 
-    if (h < 24 && course) return `Viktig deadline i ${course}`;
+    if (h < 24 && course) return `Deadline snart i ${course}`;
     if (h < 24) return 'Deadline inom 24h';
     if (h < 72 && course) return `Deadline snart i ${course}`;
     if (h < 72) return 'Deadline inom 3 dagar';
@@ -260,30 +258,27 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     return null;
   };
 
-  // Detailed bullet reasons for modal
+  // Detailed bullet reasons for modal — short, natural Swedish
   const getDetailedReasons = (event: StudyEvent): string[] => {
     const reasons: string[] = [];
     const h = hoursUntil(event);
     const hp = getEventHp(event);
     const linkedSubtask = subtasks.find(s => s.event_id === event.id);
 
-    if (h < 0) reasons.push('Deadline har redan passerat');
-    else if (h < 24) reasons.push('Mindre än 24 timmar kvar till deadline');
-    else if (h < 72) reasons.push('Deadline inom 3 dagar');
+    if (h < 0) reasons.push('Deadline har passerat');
+    else if (h < 24) reasons.push('Deadline är snart – mindre än ett dygn kvar');
+    else if (h < 72) reasons.push('Deadline är snart – inom 3 dagar');
     else if (h < 168) reasons.push('Deadline inom en vecka');
 
-    if (event.event_type === 'exam') reasons.push('Tentor väger tyngst i prioriteringen');
-    else if (event.event_type === 'assignment') reasons.push('Inlämningsuppgifter prioriteras högre än övriga moment');
-    else if (event.event_type === 'lab') reasons.push('Laboration – kräver ofta förberedelse');
+    if (event.event_type === 'exam') reasons.push('Tenta prioriteras högt');
+    else if (event.event_type === 'assignment' && hp >= 3) reasons.push('Uppgift med hög omfattning');
+    else if (event.event_type === 'assignment') reasons.push('Uppgift med deadline');
+    else if (event.event_type === 'lab') reasons.push('Labb kräver förberedelse');
 
     if (event.course_code) reasons.push(`Kopplad till kursen ${event.course_code}`);
-    if (hp > 0) reasons.push(`${hp} HP – större moment prioriteras högre`);
-    if (linkedSubtask) {
-      reasons.push(linkedSubtask.completed
-        ? 'Kopplad till ett kursmoment (avklarat)'
-        : 'Kopplad till ett kursmoment som ännu inte är avklarat');
-    }
-    if (event.status && event.status !== 'complete') reasons.push('Status är fortfarande "Kommande"');
+    if (hp > 0) reasons.push(`${hp} HP gör momentet viktigare`);
+    if (linkedSubtask && !linkedSubtask.completed) reasons.push('Kopplad till ett kursmoment som inte är avklarat');
+    if (event.status && event.status !== 'complete') reasons.push('Inte avklarad ännu');
     return reasons;
   };
 
