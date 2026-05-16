@@ -394,6 +394,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
           <CardTitle className="flex items-center gap-2 font-heading">
             <TrendingUp className="h-5 w-5 text-primary" />
             Studieframsteg
+            <InfoPopover label="Så beräknas studieframsteg">
+              Studieframsteg visar hur många HP du har klarat av i relation till programmets totala HP. Delvis avklarade moment visas separat och räknas inte som helt avklarad kurs.
+            </InfoPopover>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
