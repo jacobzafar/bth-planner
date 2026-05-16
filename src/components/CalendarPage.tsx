@@ -13,9 +13,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, CheckCircle2, RotateCcw, Pencil, Trash2, Save, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, RotateCcw, Pencil, Trash2, Save, X, Plus } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, subDays, isSameDay } from 'date-fns';
 import { sv } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
