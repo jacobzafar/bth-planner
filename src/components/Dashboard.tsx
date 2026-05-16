@@ -68,7 +68,7 @@ const STATUS_LABEL: Record<string, string> = {
   overdue: 'Försenad',
 };
 
-export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
+export default function Dashboard({ userId, totalProgramHp, programName: programNameProp, startYear }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [courses, setCourses] = useState<CourseData[]>([]);
   const [subtasks, setSubtasks] = useState<LinkedSubtask[]>([]);
