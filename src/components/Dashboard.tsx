@@ -38,6 +38,8 @@ interface CourseData {
   status: string;
   hp: number;
   year: number;
+  course_code?: string;
+  course_name?: string;
 }
 
 interface LinkedSubtask {
