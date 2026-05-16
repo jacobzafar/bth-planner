@@ -125,6 +125,24 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
     other: 'Övrigt',
   };
 
+  const getReasons = (event: StudyEvent, hoursLeft: number, linkedHp: number | null, hasLinkedSubtask: boolean): string[] => {
+    const reasons: string[] = [];
+    if (hoursLeft < 0) reasons.push('Försenad');
+    else if (hoursLeft < 24) reasons.push('Deadline inom 24h');
+    else if (hoursLeft < 72) reasons.push('Deadline inom 3 dagar');
+    else if (hoursLeft < 168) reasons.push('Deadline inom en vecka');
+
+    if (event.event_type === 'exam') reasons.push('Tenta – hög vikt');
+    else if (event.event_type === 'assignment') reasons.push('Inlämningsuppgift');
+    else if (event.event_type === 'lab') reasons.push('Laboration');
+
+    if (event.course_code) reasons.push(`Kopplad till ${event.course_code}`);
+    if (linkedHp && linkedHp > 0) reasons.push(`${linkedHp} HP`);
+    if (hasLinkedSubtask) reasons.push('Kopplad till kursmoment');
+    if (event.status && event.status !== 'complete') reasons.push('Ej avklarad');
+    return reasons;
+  };
+
   const formatDueLabel = (dueDate: string, dueTime: string | null) => {
     const due = new Date(`${dueDate}T${dueTime || '23:59'}`);
     const hours = differenceInHours(due, now);
