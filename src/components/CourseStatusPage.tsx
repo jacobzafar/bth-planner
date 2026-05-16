@@ -34,6 +34,8 @@ interface UserCourse {
   status: CourseStatus;
 }
 
+type SubtaskType = 'exam' | 'assignment' | 'lab' | 'other';
+
 interface Subtask {
   id: string;
   course_id: string;
@@ -42,7 +44,15 @@ interface Subtask {
   due_date: string | null;
   hp: number;
   event_id: string | null;
+  type: SubtaskType;
 }
+
+const SUBTASK_TYPE_LABEL: Record<SubtaskType, string> = {
+  exam: '📋 Tenta',
+  assignment: '📝 Uppgift',
+  lab: '🧪 Labb',
+  other: '📌 Annat',
+};
 
 interface PrereqStatus {
   prereqs: string[];
