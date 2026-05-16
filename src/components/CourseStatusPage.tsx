@@ -643,14 +643,33 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     });
   };
 
+  const isDirty = useMemo(
+    () => courses.some(c => initialStatusesRef.current.get(c.id) !== c.status),
+    [courses],
+  );
+
+  const resetStatusChanges = () => {
+    setCourses(prev =>
+      prev.map(c => {
+        const init = initialStatusesRef.current.get(c.id);
+        return init !== undefined ? { ...c, status: init } : c;
+      }),
+    );
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      for (const course of courses) {
+      const dirtyCourses = courses.filter(
+        c => initialStatusesRef.current.get(c.id) !== c.status,
+      );
+      for (const course of dirtyCourses) {
         const { error } = await supabase.from('user_courses').update({ status: course.status }).eq('id', course.id);
         if (error) throw error;
       }
+      initialStatusesRef.current = new Map(courses.map(c => [c.id, c.status]));
       toast.success('Kursstatus sparad!');
+      navigate('/');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Kunde inte spara';
       toast.error(message);
