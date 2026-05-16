@@ -105,9 +105,12 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
   }, [events]);
 
   const typeColor: Record<string, string> = {
-    assignment: 'bg-info',
-    lab: 'bg-success',
-    exam: 'bg-destructive',
+    exam: 'bg-red-500',
+    assignment: 'bg-blue-500',
+    lab: 'bg-green-500',
+    seminar: 'bg-purple-500',
+    lecture: 'bg-orange-500',
+    other: 'bg-gray-400',
   };
 
   const today = new Date();
