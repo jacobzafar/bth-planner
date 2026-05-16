@@ -175,7 +175,7 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
                 placeholder="t.ex. 1.5"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Används för att prioritera större moment högre.
+                Används för att prioritera större moment högre. Om kurs är vald och HP &gt; 0 läggs händelsen även till som ett delmoment på kursen.
               </p>
             </div>
 
