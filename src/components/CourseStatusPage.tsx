@@ -561,6 +561,10 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [newSubtaskDate, setNewSubtaskDate] = useState<Record<string, string>>({});
   const [newSubtaskHp, setNewSubtaskHp] = useState<Record<string, string>>({});
 
+  // Pending destructive confirmations
+  const [pendingCourseDelete, setPendingCourseDelete] = useState<{ id: string; name: string } | null>(null);
+  const [pendingSubtaskDelete, setPendingSubtaskDelete] = useState<Subtask | null>(null);
+
   // Display-only filters
   const [filterSearch, setFilterSearch] = useState('');
   const [filterYear, setFilterYear] = useState<string>('all');
