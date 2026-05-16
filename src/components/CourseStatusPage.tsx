@@ -360,8 +360,8 @@ function NewSubtaskForm({
 
 function SubtasksSection({
   course, courseSubtasks, isExpanded, onToggleExpanded,
-  newText, newDate, newHp,
-  setNewText, setNewDate, setNewHp,
+  newText, newDate, newHp, newType,
+  setNewText, setNewDate, setNewHp, setNewType,
   onToggleSubtask, onDeleteSubtask, onAddSubtask,
 }: {
   course: UserCourse;
@@ -371,9 +371,11 @@ function SubtasksSection({
   newText: string;
   newDate: string;
   newHp: string;
+  newType: SubtaskType;
   setNewText: (v: string) => void;
   setNewDate: (v: string) => void;
   setNewHp: (v: string) => void;
+  setNewType: (v: SubtaskType) => void;
   onToggleSubtask: (s: Subtask) => void;
   onDeleteSubtask: (s: Subtask) => void;
   onAddSubtask: (courseId: string) => void;
@@ -392,8 +394,8 @@ function SubtasksSection({
         ))}
         <NewSubtaskForm
           courseId={course.id}
-          text={newText} date={newDate} hp={newHp}
-          setText={setNewText} setDate={setNewDate} setHp={setNewHp}
+          text={newText} date={newDate} hp={newHp} type={newType}
+          setText={setNewText} setDate={setNewDate} setHp={setNewHp} setType={setNewType}
           onAdd={onAddSubtask}
         />
       </CollapsibleContent>
