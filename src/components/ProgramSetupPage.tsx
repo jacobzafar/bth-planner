@@ -42,7 +42,7 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
         .from('profiles')
         .update({ 
           program_name: program.name, 
-          start_year: parseInt(startYear, 10),
+          start_year: Number.parseInt(startYear, 10),
           setup_complete: true 
         })
         .eq('user_id', userId);
