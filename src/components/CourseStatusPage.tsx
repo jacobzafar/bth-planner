@@ -9,6 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
@@ -557,6 +561,10 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [newSubtaskDate, setNewSubtaskDate] = useState<Record<string, string>>({});
   const [newSubtaskHp, setNewSubtaskHp] = useState<Record<string, string>>({});
 
+  // Pending destructive confirmations
+  const [pendingCourseDelete, setPendingCourseDelete] = useState<{ id: string; name: string } | null>(null);
+  const [pendingSubtaskDelete, setPendingSubtaskDelete] = useState<Subtask | null>(null);
+
   // Display-only filters
   const [filterSearch, setFilterSearch] = useState('');
   const [filterYear, setFilterYear] = useState<string>('all');
@@ -884,13 +892,13 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               courseNameMap={courseNameMap}
               getPrereqStatus={getPrereqStatus}
               onUpdateStatus={updateStatus}
-              onDelete={handleDelete}
+              onDelete={(id, name) => setPendingCourseDelete({ id, name })}
               onToggleExpanded={toggleExpanded}
               setNewSubtaskText={setNewSubtaskText}
               setNewSubtaskDate={setNewSubtaskDate}
               setNewSubtaskHp={setNewSubtaskHp}
               onToggleSubtask={toggleSubtask}
-              onDeleteSubtask={deleteSubtask}
+              onDeleteSubtask={(s) => setPendingSubtaskDelete(s)}
               onAddSubtask={handleAddSubtask}
             />
           ))}
@@ -900,6 +908,71 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
           <Save className="h-4 w-4" /> {saving ? 'Sparar...' : 'Spara kursstatus'}
         </Button>
       </main>
+
+      <AlertDialog open={!!pendingCourseDelete} onOpenChange={(o) => !o && setPendingCourseDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ta bort kurs?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingCourseDelete && (() => {
+                const subCount = subtasks.filter(s => s.course_id === pendingCourseDelete.id).length;
+                return (
+                  <>
+                    Kursen "{pendingCourseDelete.name}" tas bort permanent.
+                    {subCount > 0 && ` Även ${subCount} delmoment kopplade till kursen kommer att tas bort. Eventuella kalenderhändelser kopplade till dessa delmoment kan också påverkas.`}
+                    {' '}Detta går inte att ångra.
+                  </>
+                );
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (pendingCourseDelete) {
+                  await handleDelete(pendingCourseDelete.id, pendingCourseDelete.name);
+                  setPendingCourseDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Ta bort
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!pendingSubtaskDelete} onOpenChange={(o) => !o && setPendingSubtaskDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ta bort delmoment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSubtaskDelete && (
+                <>
+                  Delmomentet "{pendingSubtaskDelete.title}" tas bort permanent.
+                  {pendingSubtaskDelete.event_id && ' Den kopplade kalenderhändelsen tas också bort.'}
+                  {' '}Detta går inte att ångra.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (pendingSubtaskDelete) {
+                  await deleteSubtask(pendingSubtaskDelete);
+                  setPendingSubtaskDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Ta bort
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
