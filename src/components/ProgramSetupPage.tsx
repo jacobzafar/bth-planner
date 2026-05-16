@@ -117,11 +117,11 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
         </div>
 
         <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1 mb-4">
-          {filteredPrograms.map((program, i) => {
+          {filteredPrograms.map((program) => {
             const originalIndex = bthPrograms.indexOf(program);
             return (
               <Card
-                key={i}
+                key={program.name}
                 onClick={() => setSelected(originalIndex)}
                 className={`cursor-pointer transition-all hover:shadow-md ${
                   selected === originalIndex ? 'ring-2 ring-primary bg-secondary' : ''
