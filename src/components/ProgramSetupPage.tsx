@@ -50,7 +50,7 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
       if (profileError) throw profileError;
 
       // Calculate which years the student has completed based on start year
-      const yearsStudied = currentYear - parseInt(startYear, 10);
+      const yearsStudied = currentYear - Number.parseInt(startYear, 10);
 
       // Insert all courses from the program for years up to current
       const coursesToInsert = program.courses
