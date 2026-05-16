@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertTriangle, ShieldAlert, BookOpen, Lock, Info, CalendarRange } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, BookOpen, Lock, Info, CalendarRange, Sparkles } from 'lucide-react';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
 
@@ -18,6 +18,8 @@ interface RiskOverviewProps {
   programName: string | null;
   startYear: number | null;
   compact?: boolean;
+  upcomingEventsCount?: number;
+  unfinishedSubtasksCount?: number;
 }
 
 const MAX_NAME_LEN = 32;
@@ -28,7 +30,10 @@ function fmtCourse(code: string, name?: string) {
   return `${code} – ${name.slice(0, MAX_NAME_LEN).trim()}…`;
 }
 
-export default function RiskOverview({ courses, programName, startYear, compact = true }: RiskOverviewProps) {
+export default function RiskOverview({
+  courses, programName, startYear, compact = true,
+  upcomingEventsCount = 0, unfinishedSubtasksCount = 0,
+}: RiskOverviewProps) {
   const [expanded, setExpanded] = useState(false);
 
   const programTemplate = useMemo(
@@ -59,9 +64,6 @@ export default function RiskOverview({ courses, programName, startYear, compact 
   const nameOf = (code: string) =>
     courseByCode.get(code)?.course_name || templateNameMap.get(code);
 
-  const yearOf = (code: string) =>
-    courseByCode.get(code)?.year ?? programTemplate?.courses.find(c => c.code === code)?.year;
-
   const estimate = startYear ? estimateStudyYear(startYear) : null;
   const currentStudyYear = estimate?.year ?? 1;
 
@@ -69,22 +71,27 @@ export default function RiskOverview({ courses, programName, startYear, compact 
     c => c.year <= currentStudyYear && c.status !== 'completed',
   );
 
+  const partlyCourses = courses.filter(c => c.status === 'partly');
+
   type PrereqKind = 'met' | 'soft' | 'hard';
   const prereqKind = (code: string): PrereqKind => {
     const s = courseByCode.get(code)?.status;
     if (s === 'completed') return 'met';
     if (s === 'partly') return 'soft';
-    return 'hard';
+    return 'hard'; // not_started OR not in user's plan at all
   };
 
   type CourseAnalysis = {
     course: CourseRow;
-    hardUnmet: string[];
-    softUnmet: string[];
+    hardUnmet: string[]; // prereq not started
+    softUnmet: string[]; // prereq partly
   };
 
-  const analyses: CourseAnalysis[] = courses
-    .filter(c => c.status !== 'completed')
+  // Only "Ej påbörjad" (not_started) courses can be considered "blocked"
+  // by missing prerequisites. Partly-completed courses are treated as already
+  // started and never appear as blocking risks.
+  const notStartedAnalyses: CourseAnalysis[] = courses
+    .filter(c => c.status !== 'completed' && c.status !== 'partly')
     .map(c => {
       const prereqs = prereqMap.get(c.course_code) || [];
       const hardUnmet: string[] = [];
@@ -97,39 +104,109 @@ export default function RiskOverview({ courses, programName, startYear, compact 
       return { course: c, hardUnmet, softUnmet };
     });
 
-  const blockedCourses = analyses.filter(a => a.hardUnmet.length > 0);
-  const upcomingMissing = analyses.filter(
+  // A course is "blocked" if it is not started AND has at least one hard (not started) prereq.
+  const blockedCourses = notStartedAnalyses.filter(a => a.hardUnmet.length > 0);
+
+  // Upcoming (future-year) not started courses with any unmet prereq (hard or soft)
+  const upcomingMissing = notStartedAnalyses.filter(
     a => a.course.year > currentStudyYear && (a.hardUnmet.length > 0 || a.softUnmet.length > 0),
   );
 
-  // Group recommendations by prerequisite course: which prereqs unlock the most/soonest courses
-  type RecGroup = { prereq: string; affects: { code: string; year: number }[]; minYear: number };
+  // Build recommendations grouped by prereq. Severity per prereq is "hard" if
+  // at least one dependent course lists it as a hard prereq, else "soft".
+  type RecGroup = {
+    prereq: string;
+    severity: 'hard' | 'soft';
+    affects: { code: string; year: number }[];
+    minYear: number;
+  };
   const recsByPrereq = new Map<string, RecGroup>();
-  for (const a of analyses) {
-    if (a.course.status === 'completed') continue;
-    for (const p of a.hardUnmet) {
-      const g = recsByPrereq.get(p) || { prereq: p, affects: [], minYear: Infinity };
-      g.affects.push({ code: a.course.course_code, year: a.course.year });
+  for (const a of notStartedAnalyses) {
+    const addPrereq = (p: string, isHard: boolean) => {
+      const g = recsByPrereq.get(p) || {
+        prereq: p, severity: 'soft' as 'hard' | 'soft', affects: [], minYear: Infinity,
+      };
+      if (isHard) g.severity = 'hard';
+      if (!g.affects.some(x => x.code === a.course.course_code)) {
+        g.affects.push({ code: a.course.course_code, year: a.course.year });
+      }
       if (a.course.year < g.minYear) g.minYear = a.course.year;
       recsByPrereq.set(p, g);
-    }
+    };
+    for (const p of a.hardUnmet) addPrereq(p, true);
+    for (const p of a.softUnmet) addPrereq(p, false);
   }
   const sortedRecs = Array.from(recsByPrereq.values()).sort((a, b) => {
+    // hard before soft, then earliest blocked year, then most affected
+    if (a.severity !== b.severity) return a.severity === 'hard' ? -1 : 1;
     if (a.minYear !== b.minYear) return a.minYear - b.minYear;
     return b.affects.length - a.affects.length;
   });
 
   type Rec = { key: string; text: string; helper: string };
-  const recs: Rec[] = sortedRecs.slice(0, 3).map(g => {
+  const blockingRecs: Rec[] = sortedRecs.slice(0, 3).map(g => {
     const focusLabel = fmtCourse(g.prereq, nameOf(g.prereq));
     const affectsShown = g.affects.slice(0, 3).map(a => fmtCourse(a.code, nameOf(a.code))).join(', ');
     const more = g.affects.length > 3 ? ` +${g.affects.length - 3}` : '';
+    const verb = g.severity === 'hard' ? 'Fokusera på' : 'Slutför';
     return {
       key: `rec-${g.prereq}`,
-      text: `Fokusera på ${focusLabel}`,
+      text: `${verb} ${focusLabel}`,
       helper: `Behövs för ${affectsShown}${more}`,
     };
   });
+
+  // Fallback recommendations when there are no hard blocks pulling focus.
+  const fallbackRecs: Rec[] = [];
+  if (blockingRecs.length === 0) {
+    if (partlyCourses.length > 0) {
+      const sample = partlyCourses
+        .slice(0, 3)
+        .map(c => fmtCourse(c.course_code, c.course_name))
+        .join(', ');
+      const more = partlyCourses.length > 3 ? ` +${partlyCourses.length - 3}` : '';
+      fallbackRecs.push({
+        key: 'fb-active',
+        text: 'Fokusera på aktiva kurser',
+        helper: `Du har kurser som är delvis avklarade och bör slutföras: ${sample}${more}.`,
+      });
+    }
+    const oldOverdue = overdueCourses.filter(c => c.year < currentStudyYear);
+    if (oldOverdue.length > 0) {
+      const sample = oldOverdue
+        .slice(0, 3)
+        .map(c => fmtCourse(c.course_code, c.course_name))
+        .join(', ');
+      const more = oldOverdue.length > 3 ? ` +${oldOverdue.length - 3}` : '';
+      fallbackRecs.push({
+        key: 'fb-retake',
+        text: 'Planera omtentor eller kompletteringar',
+        helper: `Du har kurser från tidigare år som inte är avklarade: ${sample}${more}.`,
+      });
+    }
+    if (upcomingEventsCount > 0) {
+      fallbackRecs.push({
+        key: 'fb-deadlines',
+        text: 'Fortsätt med kommande deadlines',
+        helper: 'Inga akuta spärrar hittades just nu. Se "Fokusera härnäst" för nästa steg.',
+      });
+    } else if (unfinishedSubtasksCount > 0) {
+      fallbackRecs.push({
+        key: 'fb-subtasks',
+        text: 'Slutför påbörjade kursmoment',
+        helper: `Du har ${unfinishedSubtasksCount} oavklarade kursmoment att jobba vidare med.`,
+      });
+    }
+    if (fallbackRecs.length === 0) {
+      fallbackRecs.push({
+        key: 'fb-allgood',
+        text: 'Inga akuta spärrar hittades just nu',
+        helper: 'Fortsätt följa dina kommande deadlines och aktiva kurser.',
+      });
+    }
+  }
+
+  const recs: Rec[] = blockingRecs.length > 0 ? blockingRecs : fallbackRecs;
 
   const sortedBlocked = [...blockedCourses].sort(
     (a, b) => a.course.year - b.course.year || b.hardUnmet.length - a.hardUnmet.length,
@@ -174,6 +251,7 @@ export default function RiskOverview({ courses, programName, startYear, compact 
     blockedCourses.length === 0;
 
   const totalDetails = blockedList.length + upcomingList.length + overdueList.length;
+  const showingFallback = blockingRecs.length === 0;
 
   return (
     <Card>
@@ -194,8 +272,8 @@ export default function RiskOverview({ courses, programName, startYear, compact 
               </PopoverTrigger>
               <PopoverContent side="bottom" align="start" className="w-72 text-sm">
                 Riskbilden baseras på ditt program, startår, kursstatus och förkunskapskrav.
-                Kurser som är delvis avklarade räknas som påbörjade och visas därför som lägre
-                risk än kurser som inte är påbörjade.
+                Kurser som är delvis avklarade räknas som påbörjade och visas därför inte som
+                spärrade, även om någon förkunskap inte är helt klar.
               </PopoverContent>
             </Popover>
           </CardTitle>
@@ -240,7 +318,11 @@ export default function RiskOverview({ courses, programName, startYear, compact 
                 <ul className="space-y-2">
                   {recs.map(t => (
                     <li key={t.key} className="flex items-start gap-2">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
+                      {showingFallback ? (
+                        <Sparkles className="mt-0.5 h-3.5 w-3.5 text-primary shrink-0" />
+                      ) : (
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
+                      )}
                       <div className="min-w-0">
                         <p className="text-sm text-foreground font-medium leading-snug">{t.text}</p>
                         <p className="text-xs text-muted-foreground">{t.helper}</p>
@@ -251,7 +333,7 @@ export default function RiskOverview({ courses, programName, startYear, compact 
               </div>
             )}
 
-            {compact && totalDetails > recs.length && (
+            {compact && totalDetails > 0 && (
               <>
                 {expanded && (
                   <div className="space-y-3 pt-1">
