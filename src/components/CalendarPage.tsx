@@ -214,10 +214,13 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 mb-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-info" /> Uppgift</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-success" /> Labb</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-destructive" /> Tenta</span>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500" /> Tenta</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500" /> Uppgift</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500" /> Labb</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-purple-500" /> Seminarium</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500" /> Föreläsning</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-gray-400" /> Annat</span>
           </div>
 
           <div className="grid grid-cols-7 gap-px mb-1">
