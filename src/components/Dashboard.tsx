@@ -464,10 +464,17 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
       {/* Fokus näst */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 font-heading">
-            <Target className="h-5 w-5 text-primary" />
-            Fokusera härnäst
-          </CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2 font-heading">
+              <Target className="h-5 w-5 text-primary" />
+              Fokusera härnäst
+            </CardTitle>
+            <Link to="/add-event">
+              <Button size="sm" className="gap-2">
+                <Plus className="h-4 w-4" /> Lägg till händelse
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {focusEvents.length === 0 ? (
@@ -532,20 +539,6 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
         startYear={startYear ?? null}
         compact
       />
-
-      {/* Snabbåtgärder */}
-      <div className="flex gap-3">
-        <Link to="/add-event" className="flex-1">
-          <Button className="w-full gap-2">
-            <Plus className="h-4 w-4" /> Lägg till händelse
-          </Button>
-        </Link>
-        <Link to="/kalender" className="flex-1">
-          <Button variant="outline" className="w-full gap-2">
-            <CalendarDays className="h-4 w-4" /> Kalender
-          </Button>
-        </Link>
-      </div>
 
       {/* Detail modal */}
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setEditing(false); } }}>

@@ -151,9 +151,9 @@ export default function SettingsPage({ userId, email, programName, startYear, on
           {estimate && (
             <div className="flex items-start justify-between gap-3">
               <span className="text-sm text-muted-foreground shrink-0">Just nu</span>
-              <span className="text-sm text-foreground text-right">
+              <span className="text-sm text-foreground text-right font-medium">
                 {estimate.uncertain ? estimate.label : (
-                  <>Du går troligen <span className="font-medium">år {estimate.year}</span> ({estimate.semester === 1 ? 'HT' : 'VT'})</>
+                  <>År {estimate.year}, termin {estimate.semester} ({estimate.semester === 1 ? 'HT' : 'VT'})</>
                 )}
               </span>
             </div>
