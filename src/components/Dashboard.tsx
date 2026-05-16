@@ -17,10 +17,13 @@ import { sv } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
+import RiskOverview from '@/components/RiskOverview';
 
 interface DashboardProps {
   userId: string;
   totalProgramHp?: number;
+  programName?: string | null;
+  startYear?: number | null;
 }
 
 interface StudyEvent {
@@ -65,7 +68,7 @@ const STATUS_LABEL: Record<string, string> = {
   overdue: 'Försenad',
 };
 
-export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
+export default function Dashboard({ userId, totalProgramHp, startYear }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [courses, setCourses] = useState<CourseData[]>([]);
   const [subtasks, setSubtasks] = useState<LinkedSubtask[]>([]);
@@ -516,6 +519,19 @@ export default function Dashboard({ userId, totalProgramHp }: DashboardProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Riskbild & rekommendationer */}
+      <RiskOverview
+        courses={courses.map(c => ({
+          course_code: c.course_code || '',
+          course_name: c.course_name,
+          year: c.year,
+          status: c.status,
+        })).filter(c => c.course_code)}
+        programName={programName}
+        startYear={startYear ?? null}
+        compact
+      />
 
       {/* Snabbåtgärder */}
       <div className="flex gap-3">
