@@ -1,10 +1,23 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { ChevronLeft, ChevronRight, CheckCircle2, RotateCcw, Pencil, Trash2, Save, X } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, subDays, isSameDay } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface CalendarPageProps {
   userId: string;
@@ -16,15 +29,60 @@ interface StudyEvent {
   event_type: string;
   due_date: string;
   status: string;
+  course_code: string | null;
+  due_time: string | null;
+  description: string | null;
 }
+
+interface UserCourse {
+  id: string;
+  course_code: string;
+  course_name: string;
+}
+
+const TYPE_LABEL: Record<string, string> = {
+  assignment: '📝 Uppgift',
+  lab: '🧪 Labb',
+  exam: '📋 Tenta',
+  other: '📌 Övrigt',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  upcoming: 'Kommande',
+  complete: 'Klar',
+  overdue: 'Försenad',
+};
 
 export default function CalendarPage({ userId }: CalendarPageProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState<StudyEvent[]>([]);
+  const [courses, setCourses] = useState<UserCourse[]>([]);
+  const [selected, setSelected] = useState<StudyEvent | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // edit form state
+  const [fTitle, setFTitle] = useState('');
+  const [fCourse, setFCourse] = useState('');
+  const [fType, setFType] = useState('assignment');
+  const [fDate, setFDate] = useState('');
+  const [fTime, setFTime] = useState('');
+  const [fDesc, setFDesc] = useState('');
+
+  const loadEvents = useCallback(async () => {
+    const { data } = await supabase
+      .from('study_events')
+      .select('id, title, event_type, due_date, status, course_code, due_time, description')
+      .eq('user_id', userId);
+    setEvents((data || []) as StudyEvent[]);
+  }, [userId]);
+
+  useEffect(() => { loadEvents(); }, [loadEvents]);
 
   useEffect(() => {
-    supabase.from('study_events').select('id, title, event_type, due_date, status').eq('user_id', userId)
-      .then(({ data }) => setEvents((data || []) as StudyEvent[]));
+    supabase.from('user_courses').select('id, course_code, course_name').eq('user_id', userId)
+      .then(({ data }) => setCourses((data || []) as UserCourse[]));
   }, [userId]);
 
   const monthStart = startOfMonth(currentMonth);
@@ -48,6 +106,75 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
   };
 
   const today = new Date();
+
+  const openEvent = (e: StudyEvent) => {
+    setSelected(e);
+    setEditing(false);
+  };
+
+  const closeDialog = () => {
+    setSelected(null);
+    setEditing(false);
+  };
+
+  const beginEdit = () => {
+    if (!selected) return;
+    setFTitle(selected.title);
+    setFCourse(selected.course_code || '');
+    setFType(selected.event_type);
+    setFDate(selected.due_date);
+    setFTime(selected.due_time || '');
+    setFDesc(selected.description || '');
+    setEditing(true);
+  };
+
+  const toggleStatus = async () => {
+    if (!selected) return;
+    const newStatus = selected.status === 'complete' ? 'upcoming' : 'complete';
+    setSaving(true);
+    const { error } = await supabase.from('study_events')
+      .update({ status: newStatus }).eq('id', selected.id);
+    setSaving(false);
+    if (error) { toast.error('Kunde inte uppdatera status'); return; }
+    setEvents(prev => prev.map(e => e.id === selected.id ? { ...e, status: newStatus } : e));
+    setSelected({ ...selected, status: newStatus });
+    toast.success(newStatus === 'complete' ? 'Markerad som klar' : 'Markerad som kommande');
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected) return;
+    if (!fTitle.trim() || !fDate) { toast.error('Fyll i alla obligatoriska fält'); return; }
+    setSaving(true);
+    const updates = {
+      title: fTitle.trim(),
+      course_code: fCourse || null,
+      event_type: fType,
+      due_date: fDate,
+      due_time: fTime || null,
+      description: fDesc.trim() || null,
+    };
+    const { error } = await supabase.from('study_events').update(updates).eq('id', selected.id);
+    setSaving(false);
+    if (error) { toast.error('Kunde inte spara ändringar'); return; }
+    const updated = { ...selected, ...updates };
+    setEvents(prev => prev.map(ev => ev.id === selected.id ? updated : ev));
+    setSelected(updated);
+    setEditing(false);
+    toast.success('Händelse uppdaterad');
+  };
+
+  const doDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    const { error } = await supabase.from('study_events').delete().eq('id', selected.id);
+    setSaving(false);
+    setConfirmDelete(false);
+    if (error) { toast.error('Kunde inte ta bort'); return; }
+    setEvents(prev => prev.filter(e => e.id !== selected.id));
+    toast.success('Händelse borttagen');
+    closeDialog();
+  };
 
   return (
     <div className="max-w-4xl mx-auto md:mt-12 animate-slide-up">
@@ -97,16 +224,18 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
                   </span>
                   <div className="space-y-0.5 mt-0.5">
                     {dayEvents.slice(0, 3).map(e => (
-                      <div
+                      <button
                         key={e.id}
-                        className={`${typeColor[e.event_type] || 'bg-muted'} rounded px-1 py-0.5 text-[10px] leading-tight truncate ${
+                        type="button"
+                        onClick={() => openEvent(e)}
+                        className={`${typeColor[e.event_type] || 'bg-muted'} rounded px-1 py-0.5 text-[10px] leading-tight truncate w-full text-left hover:opacity-80 transition-opacity ${
                           e.status === 'complete' ? 'opacity-40 line-through' : ''
                         }`}
                         style={{ color: 'white' }}
                         title={e.title}
                       >
                         {e.title}
-                      </div>
+                      </button>
                     ))}
                     {dayEvents.length > 3 && (
                       <span className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} till</span>
@@ -118,6 +247,136 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && closeDialog()}>
+        <DialogContent className="max-w-md">
+          {selected && !editing && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="font-heading pr-6">{selected.title}</DialogTitle>
+                <DialogDescription className="flex flex-wrap gap-2 pt-2">
+                  <Badge variant="secondary">{TYPE_LABEL[selected.event_type] || selected.event_type}</Badge>
+                  {selected.course_code && <Badge variant="outline">{selected.course_code}</Badge>}
+                  <Badge variant={selected.status === 'complete' ? 'default' : 'secondary'}>
+                    {STATUS_LABEL[selected.status] || selected.status}
+                  </Badge>
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Datum: </span>
+                  <span className="font-medium">
+                    {format(new Date(selected.due_date), 'EEEE d MMMM yyyy', { locale: sv })}
+                  </span>
+                </div>
+                {selected.due_time && (
+                  <div>
+                    <span className="text-muted-foreground">Tid: </span>
+                    <span className="font-medium">{selected.due_time.slice(0, 5)}</span>
+                  </div>
+                )}
+                {selected.description && (
+                  <div className="pt-2">
+                    <p className="text-muted-foreground mb-1">Beskrivning</p>
+                    <p className="whitespace-pre-wrap">{selected.description}</p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button variant="outline" onClick={toggleStatus} disabled={saving} className="gap-2">
+                  {selected.status === 'complete'
+                    ? (<><RotateCcw className="h-4 w-4" /> Markera kommande</>)
+                    : (<><CheckCircle2 className="h-4 w-4" /> Markera klar</>)}
+                </Button>
+                <Button variant="outline" onClick={beginEdit} className="gap-2">
+                  <Pencil className="h-4 w-4" /> Redigera
+                </Button>
+                <Button variant="destructive" onClick={() => setConfirmDelete(true)} className="gap-2">
+                  <Trash2 className="h-4 w-4" /> Ta bort
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {selected && editing && (
+            <form onSubmit={saveEdit} className="space-y-3">
+              <DialogHeader>
+                <DialogTitle className="font-heading">Redigera händelse</DialogTitle>
+              </DialogHeader>
+              <div>
+                <Label htmlFor="e-title">Titel *</Label>
+                <Input id="e-title" value={fTitle} onChange={e => setFTitle(e.target.value)} required />
+              </div>
+              <div>
+                <Label htmlFor="e-course">Kurs</Label>
+                <Select value={fCourse} onValueChange={setFCourse}>
+                  <SelectTrigger><SelectValue placeholder="Välj kurs" /></SelectTrigger>
+                  <SelectContent>
+                    {courses.map(c => (
+                      <SelectItem key={c.id} value={c.course_code}>
+                        {c.course_code} - {c.course_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="e-type">Typ</Label>
+                <Select value={fType} onValueChange={setFType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="assignment">📝 Uppgift</SelectItem>
+                    <SelectItem value="lab">🧪 Labb</SelectItem>
+                    <SelectItem value="exam">📋 Tenta</SelectItem>
+                    <SelectItem value="other">📌 Övrigt</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="e-date">Datum *</Label>
+                  <Input id="e-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} required />
+                </div>
+                <div>
+                  <Label htmlFor="e-time">Tid</Label>
+                  <Input id="e-time" type="time" value={fTime} onChange={e => setFTime(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="e-desc">Beskrivning</Label>
+                <Textarea id="e-desc" value={fDesc} onChange={e => setFDesc(e.target.value)} rows={3} />
+              </div>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditing(false)} className="gap-2">
+                  <X className="h-4 w-4" /> Avbryt
+                </Button>
+                <Button type="submit" disabled={saving} className="gap-2">
+                  <Save className="h-4 w-4" /> {saving ? 'Sparar...' : 'Spara'}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ta bort händelse?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta går inte att ångra. Händelsen "{selected?.title}" tas bort permanent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ta bort
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
