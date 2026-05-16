@@ -540,20 +540,6 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
         compact
       />
 
-      {/* Snabbåtgärder */}
-      <div className="flex gap-3">
-        <Link to="/add-event" className="flex-1">
-          <Button className="w-full gap-2">
-            <Plus className="h-4 w-4" /> Lägg till händelse
-          </Button>
-        </Link>
-        <Link to="/kalender" className="flex-1">
-          <Button variant="outline" className="w-full gap-2">
-            <CalendarDays className="h-4 w-4" /> Kalender
-          </Button>
-        </Link>
-      </div>
-
       {/* Detail modal */}
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setEditing(false); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
