@@ -254,6 +254,12 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     const { error } = await supabase.from('study_events').update({ status: newStatus }).eq('id', selected.id);
     setSaving(false);
     if (error) { toast.error('Kunde inte uppdatera status'); return; }
+    // Sync linked subtask
+    const linkedSubtask = subtasks.find(s => s.event_id === selected.id);
+    if (linkedSubtask) {
+      await supabase.from('course_subtasks').update({ completed: newStatus === 'complete' }).eq('id', linkedSubtask.id);
+      setSubtasks(prev => prev.map(s => s.id === linkedSubtask.id ? { ...s, completed: newStatus === 'complete' } : s));
+    }
     setEvents(prev => prev.map(e => e.id === selected.id ? { ...e, status: newStatus } : e));
     setSelected({ ...selected, status: newStatus });
     toast.success(newStatus === 'complete' ? 'Markerad som klar' : 'Markerad som kommande');
