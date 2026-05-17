@@ -40,5 +40,12 @@ export const civilingenjorSpelteknik: ProgramTemplate = {
     // År 5
     { name: 'Stort spelprojekt', code: 'DV2653', hp: 30, year: 5, semester: 'HT' },
     { name: 'Masterarbete i datavetenskap', code: 'DV2649', hp: 30, year: 5, semester: 'VT' },
+    // Valbara kurser (platshållare för att nå 300 HP)
+    {name:'Valbar kurs 1',code:'VAL-SP01',hp:6,year:4,semester:'HT'},
+    {name:'Valbar kurs 2',code:'VAL-SP02',hp:6,year:4,semester:'VT'},
+    {name:'Valbar kurs 3',code:'VAL-SP03',hp:6,year:5,semester:'HT'},
+    {name:'Valbar kurs 4',code:'VAL-SP04',hp:6,year:5,semester:'VT'},
+    {name:'Valbar kurs 5',code:'VAL-SP05',hp:6,year:4,semester:'HT'},
+    {name:'Valbar kurs 6',code:'VAL-SP06',hp:6,year:4,semester:'VT'},
   ],
 };

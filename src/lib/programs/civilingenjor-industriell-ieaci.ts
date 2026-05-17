@@ -52,6 +52,15 @@ export const civilingenjorIndustriellIMUV: ProgramTemplate = {
     { name: 'Ekonomisk analys av teknikskiften', code: 'IY2655', hp: 7.5, year: 5, semester: 'HT' },
     { name: 'Forskningsmetod och design', code: 'IY2654', hp: 7.5, year: 5, semester: 'HT' },
     { name: 'Examensarbete för civilingenjörer', code: 'TE2502', hp: 30, year: 5, semester: 'VT', prerequisites: ['IY2654'] },
+    // Valbara kurser (platshållare för att nå 300 HP)
+    {name:'Valbar kurs 1',code:'VAL-IMUV01',hp:6,year:4,semester:'HT'},
+    {name:'Valbar kurs 2',code:'VAL-IMUV02',hp:6,year:4,semester:'VT'},
+    {name:'Valbar kurs 3',code:'VAL-IMUV03',hp:6,year:5,semester:'HT'},
+    {name:'Valbar kurs 4',code:'VAL-IMUV04',hp:6,year:5,semester:'VT'},
+    {name:'Valbar kurs 5',code:'VAL-IMUV05',hp:6,year:4,semester:'HT'},
+    {name:'Valbar kurs 6',code:'VAL-IMUV06',hp:6,year:4,semester:'VT'},
+    {name:'Valbar kurs 7',code:'VAL-IMUV07',hp:6,year:5,semester:'HT'},
+
   ],
 };
 
@@ -79,5 +88,13 @@ export const civilingenjorIndustriellMAS1: ProgramTemplate = {
     { name: 'Ekonomisk analys av teknikskiften', code: 'IY2655', hp: 7.5, year: 5, semester: 'HT' },
     { name: 'Forskningsmetod och design', code: 'IY2654', hp: 7.5, year: 5, semester: 'HT' },
     { name: 'Examensarbete för civilingenjörer', code: 'TE2502', hp: 30, year: 5, semester: 'VT', prerequisites: ['IY2654'] },
+    // Valbara kurser (platshållare för att nå 300 HP)
+    {name:'Valbar kurs 1',code:'VAL-MAS101',hp:7.5,year:4,semester:'HT'},
+    {name:'Valbar kurs 2',code:'VAL-MAS102',hp:7.5,year:4,semester:'VT'},
+    {name:'Valbar kurs 3',code:'VAL-MAS103',hp:7.5,year:5,semester:'HT'},
+    {name:'Valbar kurs 4',code:'VAL-MAS104',hp:7.5,year:5,semester:'VT'},
+    {name:'Valbar kurs 5',code:'VAL-MAS105',hp:7.5,year:4,semester:'HT'},
+    {name:'Valbar kurs 6',code:'VAL-MAS106',hp:7.5,year:4,semester:'VT'},
+
   ],
 };
