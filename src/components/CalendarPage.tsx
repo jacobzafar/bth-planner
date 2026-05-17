@@ -157,12 +157,9 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
     e.preventDefault();
     if (!selected) return;
     if (!fTitle.trim() || !fDate) { toast.error('Fyll i alla obligatoriska fält'); return; }
-    let hpValue = 0;
-    if (fHp.trim()) {
-      const parsed = parseFloat(fHp.replace(',', '.'));
-      if (isNaN(parsed) || parsed < 0) { toast.error('Ogiltigt HP-värde'); return; }
-      hpValue = parsed;
-    }
+    const hpParsed = parseHpInput(fHp);
+    if (hpParsed.ok === false) { toast.error(hpParsed.error); return; }
+    const hpValue = hpParsed.value;
     setSaving(true);
     const updates = {
       title: fTitle.trim(),
