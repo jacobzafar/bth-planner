@@ -604,6 +604,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
                   <Badge variant={selected.status === 'complete' ? 'default' : 'secondary'}>
                     {STATUS_LABEL[selected.status] || selected.status}
                   </Badge>
+                  {subtasks.some(s => s.event_id === selected.id) && (
+                    <Badge variant="outline">🔗 Kopplad till delmoment</Badge>
+                  )}
                 </DialogDescription>
               </DialogHeader>
 
