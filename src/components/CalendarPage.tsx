@@ -1,10 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -19,6 +15,23 @@ import { sv } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import EventFormFields from '@/components/EventFormFields';
+import { EVENT_TYPE_LABEL, EVENT_STATUS_LABEL, parseHpInput } from '@/lib/events';
+
+const TYPE_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(EVENT_TYPE_LABEL).map(([k, v]) => [k, `${typeEmoji(k)} ${v}`]),
+);
+function typeEmoji(k: string): string {
+  switch (k) {
+    case 'exam': return '📋';
+    case 'assignment': return '📝';
+    case 'lab': return '🧪';
+    case 'seminar': return '💬';
+    case 'lecture': return '🎓';
+    default: return '📌';
+  }
+}
+const STATUS_LABEL = EVENT_STATUS_LABEL;
 
 interface CalendarPageProps {
   userId: string;
