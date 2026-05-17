@@ -127,6 +127,8 @@ export default function Index() {
           <Route path="/kurser" element={<CourseStatusPage userId={session.user.id} programName={pName} />} />
           <Route path="/add-event" element={<AddEventPage userId={session.user.id} />} />
           <Route path="/kalender" element={<CalendarPage userId={session.user.id} />} />
+          <Route path="/deltagare" element={<ParticipantsPage userId={session.user.id} />} />
+          <Route path="/bokhandel" element={<MarketplacePage userId={session.user.id} />} />
           <Route path="/installningar" element={<SettingsPage userId={session.user.id} email={session.user.email} programName={pName} startYear={profileData?.start_year || 0} onLogout={handleLogout} onResetPlan={() => checkProfile(session.user.id)} />} />
         </Routes>
       </AppLayout>
