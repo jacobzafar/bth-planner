@@ -346,67 +346,17 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
               <DialogHeader>
                 <DialogTitle className="font-heading">Redigera händelse</DialogTitle>
               </DialogHeader>
-              <div>
-                <Label htmlFor="e-title">Titel *</Label>
-                <Input id="e-title" value={fTitle} onChange={e => setFTitle(e.target.value)} required />
-              </div>
-              <div>
-                <Label htmlFor="e-course">Kurs</Label>
-                <Select value={fCourse} onValueChange={setFCourse}>
-                  <SelectTrigger><SelectValue placeholder="Välj kurs" /></SelectTrigger>
-                  <SelectContent>
-                    {courses.map(c => (
-                      <SelectItem key={c.id} value={c.course_code}>
-                        {c.course_code} - {c.course_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="e-type">Typ</Label>
-                <Select value={fType} onValueChange={setFType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="exam">📋 Tenta</SelectItem>
-                    <SelectItem value="assignment">📝 Uppgift</SelectItem>
-                    <SelectItem value="lab">🧪 Labb</SelectItem>
-                    <SelectItem value="seminar">💬 Seminarium</SelectItem>
-                    <SelectItem value="lecture">🎓 Föreläsning</SelectItem>
-                    <SelectItem value="other">📌 Annat</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="e-date">Datum *</Label>
-                  <Input id="e-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} required />
-                </div>
-                <div>
-                  <Label htmlFor="e-time">Tid</Label>
-                  <Input id="e-time" type="time" value={fTime} onChange={e => setFTime(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="e-hp">Omfattning / HP</Label>
-                <Input
-                  id="e-hp"
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  inputMode="decimal"
-                  value={fHp}
-                  onChange={e => setFHp(e.target.value)}
-                  placeholder="t.ex. 1.5"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Används för att prioritera större moment högre.
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="e-desc">Beskrivning</Label>
-                <Textarea id="e-desc" value={fDesc} onChange={e => setFDesc(e.target.value)} rows={3} />
-              </div>
+              <EventFormFields
+                idPrefix="e"
+                courses={courses}
+                fTitle={fTitle} setFTitle={setFTitle}
+                fCourse={fCourse} setFCourse={setFCourse}
+                fType={fType} setFType={setFType}
+                fDate={fDate} setFDate={setFDate}
+                fTime={fTime} setFTime={setFTime}
+                fHp={fHp} setFHp={setFHp}
+                fDesc={fDesc} setFDesc={setFDesc}
+              />
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button type="button" variant="outline" onClick={() => setEditing(false)} className="gap-2">
                   <X className="h-4 w-4" /> Avbryt
