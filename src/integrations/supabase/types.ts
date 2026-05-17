@@ -14,6 +14,135 @@ export type Database = {
   }
   public: {
     Tables: {
+      book_listings: {
+        Row: {
+          condition: string
+          course_code: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          price_sek: number
+          seller_user_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          condition?: string
+          course_code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          price_sek: number
+          seller_user_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          condition?: string
+          course_code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          price_sek?: number
+          seller_user_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      book_orders: {
+        Row: {
+          buyer_confirmed_delivery_at: string | null
+          buyer_user_id: string
+          created_at: string
+          gross_amount_sek: number
+          id: string
+          listing_id: string
+          order_status: string
+          payment_status: string
+          platform_fee_sek: number
+          seller_net_sek: number
+          seller_user_id: string
+          swish_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_confirmed_delivery_at?: string | null
+          buyer_user_id: string
+          created_at?: string
+          gross_amount_sek: number
+          id?: string
+          listing_id: string
+          order_status?: string
+          payment_status?: string
+          platform_fee_sek: number
+          seller_net_sek: number
+          seller_user_id: string
+          swish_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_confirmed_delivery_at?: string | null
+          buyer_user_id?: string
+          created_at?: string
+          gross_amount_sek?: number
+          id?: string
+          listing_id?: string
+          order_status?: string
+          payment_status?: string
+          platform_fee_sek?: number
+          seller_net_sek?: number
+          seller_user_id?: string
+          swish_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_orders_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "book_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_orders_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "public_book_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_chat_messages: {
+        Row: {
+          body: string
+          course_code: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          course_code: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          course_code?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       course_subtasks: {
         Row: {
           completed: boolean
@@ -68,10 +197,97 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      dm_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          sender_id: string
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "dm_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dm_threads: {
         Row: {
           created_at: string
           id: string
+          user_a: string
+          user_b: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_a: string
+          user_b: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_a?: string
+          user_b?: string
+        }
+        Relationships: []
+      }
+      order_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          order_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          order_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "book_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          is_visible: boolean
           program_name: string | null
           setup_complete: boolean | null
           start_year: number | null
@@ -79,7 +295,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          display_name?: string | null
           id?: string
+          is_visible?: boolean
           program_name?: string | null
           setup_complete?: boolean | null
           start_year?: number | null
@@ -87,7 +305,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          display_name?: string | null
           id?: string
+          is_visible?: boolean
           program_name?: string | null
           setup_complete?: boolean | null
           start_year?: number | null
@@ -175,10 +395,72 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_book_listings: {
+        Row: {
+          condition: string | null
+          course_code: string | null
+          created_at: string | null
+          description: string | null
+          id: string | null
+          image_url: string | null
+          price_sek: number | null
+          status: string | null
+          title: string | null
+        }
+        Insert: {
+          condition?: string | null
+          course_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          image_url?: string | null
+          price_sek?: number | null
+          status?: string | null
+          title?: string | null
+        }
+        Update: {
+          condition?: string | null
+          course_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          image_url?: string | null
+          price_sek?: number | null
+          status?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
+      visible_profiles: {
+        Row: {
+          display_name: string | null
+          program_name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          display_name?: string | null
+          program_name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          display_name?: string | null
+          program_name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      is_user_visible: { Args: { _uid: string }; Returns: boolean }
+      order_is_unlocked: {
+        Args: { _order_id: string; _uid: string }
+        Returns: boolean
+      }
+      user_has_course: {
+        Args: { _code: string; _uid: string }
+        Returns: boolean
+      }
+      users_share_course: { Args: { _a: string; _b: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
