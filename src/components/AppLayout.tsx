@@ -61,7 +61,7 @@ export default function AppLayout({ children, programName, startYear, onLogout }
         </div>
         {/* Mobile program name row */}
         <div className="container pb-2 sm:hidden">
-          <p className="text-xs text-muted-foreground truncate" title={programName}>{programName}</p>
+          <p className="text-xs text-muted-foreground truncate" title={cleanProgramName}>{cleanProgramName}</p>
         </div>
       </header>
 
