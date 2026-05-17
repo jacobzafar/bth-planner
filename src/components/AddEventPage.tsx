@@ -54,9 +54,8 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
       toast.error(hpParsed.error);
       return;
     }
-    const hpValue = hpParsed.value;
+    const hpFinal = hpParsed.value;
     setLoading(true);
-    const hpFinal = hpValue ?? 0;
     const { data: eventRow, error } = await supabase.from('study_events').insert({
       user_id: userId,
       title: title.trim(),
