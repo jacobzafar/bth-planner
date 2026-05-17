@@ -9,8 +9,13 @@ import { toast } from 'sonner';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
-export default function AuthPage() {
-  const [mode, setMode] = useState<Mode>('login');
+interface AuthPageProps {
+  initialMode?: Mode;
+  onBack?: () => void;
+}
+
+export default function AuthPage({ initialMode = 'login', onBack }: AuthPageProps = {}) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
