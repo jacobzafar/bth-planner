@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
 import { toast } from 'sonner';
+import VisibilityCard from '@/components/VisibilityCard';
 
 interface SettingsPageProps {
   userId: string;
