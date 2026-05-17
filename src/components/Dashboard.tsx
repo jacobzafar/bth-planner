@@ -315,7 +315,6 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     lecture: 'bg-muted text-foreground',
   };
 
-  // alias kept for backward compat in JSX
   const getEventHp = getHpForEvent;
 
   const hoursUntil = (event: StudyEvent) =>
