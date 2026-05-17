@@ -218,21 +218,6 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     return diff > 7 && diff <= 14;
   }).length;
 
-  const handleComplete = async (id: string) => {
-    const { error } = await supabase.from('study_events').update({ status: 'complete' }).eq('id', id);
-    if (error) {
-      toast.error('Kunde inte uppdatera');
-    } else {
-      const linkedSubtask = subtasks.find(s => s.event_id === id);
-      if (linkedSubtask) {
-        await supabase.from('course_subtasks').update({ completed: true }).eq('id', linkedSubtask.id);
-      }
-      toast.success('Markerad som klar!');
-      setSelected(null);
-      fetchData();
-    }
-  };
-
   const toggleStatus = async () => {
     if (!selected) return;
     const newStatus = selected.status === 'complete' ? 'upcoming' : 'complete';
