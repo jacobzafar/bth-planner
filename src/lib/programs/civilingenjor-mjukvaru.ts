@@ -44,5 +44,12 @@ export const civilingenjorMjukvaru: ProgramTemplate = {
     { name: 'Avancerat mjukvaruutvecklingsprojekt i team', code: 'PA2611', hp: 18, year: 5, semester: 'HT' },
     { name: 'Forskningsmetodik i programvaruteknik och datavetenskap', code: 'PA2602', hp: 6, year: 5, semester: 'HT' },
     { name: 'Masterarbete i programvaruteknik', code: 'PA2609', hp: 30, year: 5, semester: 'VT' },
+    // Valbara kurser (platshållare för att nå 300 HP)
+    {name:'Valbar kurs 1',code:'VAL-MJ01',hp:6,year:4,semester:'HT'},
+    {name:'Valbar kurs 2',code:'VAL-MJ02',hp:6,year:4,semester:'VT'},
+    {name:'Valbar kurs 3',code:'VAL-MJ03',hp:6,year:5,semester:'HT'},
+    {name:'Valbar kurs 4',code:'VAL-MJ04',hp:6,year:5,semester:'VT'},
+    {name:'Valbar kurs 5',code:'VAL-MJ05',hp:6,year:4,semester:'HT'},
+    {name:'Valbar kurs 6',code:'VAL-MJ06',hp:6,year:4,semester:'VT'},
   ],
 };

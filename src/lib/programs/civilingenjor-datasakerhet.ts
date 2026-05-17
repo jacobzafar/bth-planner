@@ -47,5 +47,9 @@ export const civilingenjorDatasakerhet: ProgramTemplate = {
     { name: 'Forskningsmetodik i datavetenskap', code: 'DV2654', hp: 6, year: 5, semester: 'HT' },
     { name: 'Avancerat säkerhetsmjukvaruutvecklingsprojekt i team', code: 'PA2610', hp: 18, year: 5, semester: 'HT' },
     { name: 'Masterarbete i datavetenskap', code: 'DV2649', hp: 30, year: 5, semester: 'VT' },
+    // Valbara kurser (platshållare för att nå 300 HP)
+    {name:'Valbar kurs 1',code:'VAL-DS01',hp:6,year:4,semester:'HT'},
+    {name:'Valbar kurs 2',code:'VAL-DS02',hp:6,year:4,semester:'VT'},
+    {name:'Valbar kurs 3',code:'VAL-DS03',hp:6,year:5,semester:'HT'},
   ],
 };

@@ -51,5 +51,7 @@ export const civilingenjorMaskin: ProgramTemplate = {
     { name: 'Produktutvecklingsprojekt 2C', code: 'MT2593', hp: 6, year: 5, semester: 'HT' },
     { name: 'Digitala tvillingar', code: 'MT2583', hp: 6, year: 5, semester: 'HT' },
     { name: 'Masterarbete i maskinteknik', code: 'MT2600', hp: 30, year: 5, semester: 'VT' },
+    // Valbara kurser (platshållare för att nå 300 HP)
+    {name:'Valbar kurs 1',code:'VAL-MK01',hp:6,year:4,semester:'HT'},
   ],
 };
