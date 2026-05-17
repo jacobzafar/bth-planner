@@ -143,8 +143,12 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
     setSaving(true);
     const { error } = await supabase.from('study_events')
       .update({ status: newStatus }).eq('id', selected.id);
+    if (error) { setSaving(false); toast.error('Kunde inte uppdatera status'); return; }
+    // Sync linked subtask
+    await supabase.from('course_subtasks')
+      .update({ completed: newStatus === 'complete' })
+      .eq('event_id', selected.id);
     setSaving(false);
-    if (error) { toast.error('Kunde inte uppdatera status'); return; }
     setEvents(prev => prev.map(e => e.id === selected.id ? { ...e, status: newStatus } : e));
     setSelected({ ...selected, status: newStatus });
     toast.success(newStatus === 'complete' ? 'Markerad som klar' : 'Markerad som kommande');
@@ -171,8 +175,15 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
       hp: hpValue,
     };
     const { error } = await supabase.from('study_events').update(updates).eq('id', selected.id);
+    if (error) { setSaving(false); toast.error('Kunde inte spara ändringar'); return; }
+    // Sync linked subtask
+    await supabase.from('course_subtasks').update({
+      title: updates.title,
+      due_date: updates.due_date,
+      hp: updates.hp,
+      type: updates.event_type,
+    }).eq('event_id', selected.id);
     setSaving(false);
-    if (error) { toast.error('Kunde inte spara ändringar'); return; }
     const updated = { ...selected, ...updates };
     setEvents(prev => prev.map(ev => ev.id === selected.id ? updated : ev));
     setSelected(updated);
@@ -183,6 +194,8 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
   const doDelete = async () => {
     if (!selected) return;
     setSaving(true);
+    // Delete linked subtask first to keep data consistent
+    await supabase.from('course_subtasks').delete().eq('event_id', selected.id);
     const { error } = await supabase.from('study_events').delete().eq('id', selected.id);
     setSaving(false);
     setConfirmDelete(false);

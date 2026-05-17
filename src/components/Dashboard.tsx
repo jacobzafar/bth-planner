@@ -145,7 +145,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     }
   }
   const totalHp = totalProgramHp || courses.reduce((sum, c) => sum + c.hp, 0);
-  const progressPercent = totalHp > 0 ? Math.round((completedHp / totalHp) * 100) : 0;
+  // Fold partly-completed delmoment HP into the main completed number
+  const displayedCompletedHp = Math.round((completedHp + partlyHp) * 10) / 10;
+  const progressPercent = totalHp > 0 ? Math.round((displayedCompletedHp / totalHp) * 100) : 0;
 
   const courseStats = {
     total: courses.length,
@@ -441,13 +443,10 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
         <CardContent className="space-y-4">
           <div>
             <div className="flex items-baseline justify-between mb-2">
-              <span className="text-3xl font-heading font-bold text-foreground">{completedHp} <span className="text-lg text-muted-foreground font-normal">/ {totalHp} HP</span></span>
+              <span className="text-3xl font-heading font-bold text-foreground">{displayedCompletedHp} <span className="text-lg text-muted-foreground font-normal">/ {totalHp} HP</span></span>
               <span className="text-sm font-semibold text-primary">{progressPercent}%</span>
             </div>
             <Progress value={progressPercent} className="h-3" />
-            {partlyHp > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">+ {partlyHp} HP delvis avklarade</p>
-            )}
           </div>
 
           {hpByYear.length > 1 && (
