@@ -55,20 +55,6 @@ interface UserCourse {
   course_name: string;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  exam: '📋 Tenta',
-  assignment: '📝 Uppgift',
-  lab: '🧪 Labb',
-  seminar: '💬 Seminarium',
-  lecture: '🎓 Föreläsning',
-  other: '📌 Annat',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  upcoming: 'Kommande',
-  complete: 'Klar',
-  overdue: 'Försenad',
-};
 
 export default function CalendarPage({ userId }: CalendarPageProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
