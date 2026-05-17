@@ -14,6 +14,8 @@ import { bthPrograms } from '@/lib/programs';
 
 import CalendarPage from '@/components/CalendarPage';
 import SettingsPage from '@/components/SettingsPage';
+import ParticipantsPage from '@/components/ParticipantsPage';
+import MarketplacePage from '@/components/MarketplacePage';
 
 const INTRO_KEY = 'bth_intro_shown';
 
