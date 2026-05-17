@@ -145,7 +145,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     }
   }
   const totalHp = totalProgramHp || courses.reduce((sum, c) => sum + c.hp, 0);
-  const progressPercent = totalHp > 0 ? Math.round((completedHp / totalHp) * 100) : 0;
+  // Fold partly-completed delmoment HP into the main completed number
+  const displayedCompletedHp = Math.round((completedHp + partlyHp) * 10) / 10;
+  const progressPercent = totalHp > 0 ? Math.round((displayedCompletedHp / totalHp) * 100) : 0;
 
   const courseStats = {
     total: courses.length,
