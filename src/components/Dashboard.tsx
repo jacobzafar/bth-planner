@@ -443,13 +443,10 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
         <CardContent className="space-y-4">
           <div>
             <div className="flex items-baseline justify-between mb-2">
-              <span className="text-3xl font-heading font-bold text-foreground">{completedHp} <span className="text-lg text-muted-foreground font-normal">/ {totalHp} HP</span></span>
+              <span className="text-3xl font-heading font-bold text-foreground">{displayedCompletedHp} <span className="text-lg text-muted-foreground font-normal">/ {totalHp} HP</span></span>
               <span className="text-sm font-semibold text-primary">{progressPercent}%</span>
             </div>
             <Progress value={progressPercent} className="h-3" />
-            {partlyHp > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">+ {partlyHp} HP delvis avklarade</p>
-            )}
           </div>
 
           {hpByYear.length > 1 && (
