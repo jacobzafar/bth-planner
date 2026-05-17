@@ -19,6 +19,7 @@ const navItems = [
 
 export default function AppLayout({ children, programName, startYear, onLogout }: AppLayoutProps) {
   const location = useLocation();
+  const cleanProgramName = programName.split(',')[0].trim();
   const estimate = startYear ? estimateStudyYear(startYear) : null;
   const showBadge = estimate && !estimate.uncertain;
 
