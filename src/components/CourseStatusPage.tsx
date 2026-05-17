@@ -34,6 +34,8 @@ interface UserCourse {
   status: CourseStatus;
 }
 
+type SubtaskType = 'exam' | 'assignment' | 'lab' | 'other';
+
 interface Subtask {
   id: string;
   course_id: string;
@@ -42,7 +44,15 @@ interface Subtask {
   due_date: string | null;
   hp: number;
   event_id: string | null;
+  type: SubtaskType;
 }
+
+const SUBTASK_TYPE_LABEL: Record<SubtaskType, string> = {
+  exam: '📋 Tenta',
+  assignment: '📝 Uppgift',
+  lab: '🧪 Labb',
+  other: '📌 Annat',
+};
 
 interface PrereqStatus {
   prereqs: string[];
@@ -269,8 +279,9 @@ function SubtaskRow({
       </button>
       <div className={`flex-1 min-w-0 ${sub.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
         <span className="text-sm">{sub.title}</span>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {sub.due_date && <span>📅 {sub.due_date}</span>}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          <span>{SUBTASK_TYPE_LABEL[sub.type] || SUBTASK_TYPE_LABEL.assignment}</span>
+          {sub.due_date && <span>• 📅 {sub.due_date}</span>}
           {sub.hp > 0 && <span>• {sub.hp} hp</span>}
           {sub.event_id && <span>• 📌 I kalendern</span>}
         </div>
@@ -286,15 +297,17 @@ function SubtaskRow({
 }
 
 function NewSubtaskForm({
-  courseId, text, date, hp, setText, setDate, setHp, onAdd,
+  courseId, text, date, hp, type, setText, setDate, setHp, setType, onAdd,
 }: {
   courseId: string;
   text: string;
   date: string;
   hp: string;
+  type: SubtaskType;
   setText: (v: string) => void;
   setDate: (v: string) => void;
   setHp: (v: string) => void;
+  setType: (v: SubtaskType) => void;
   onAdd: (courseId: string) => void;
 }) {
   const disabled = !text.trim();
@@ -307,13 +320,22 @@ function NewSubtaskForm({
         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAdd(courseId); } }}
         className="h-8 text-sm"
       />
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Select value={type} onValueChange={(v) => setType(v as SubtaskType)}>
+          <SelectTrigger className="h-8 text-sm w-[130px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="exam">📋 Tenta</SelectItem>
+            <SelectItem value="assignment">📝 Uppgift</SelectItem>
+            <SelectItem value="lab">🧪 Labb</SelectItem>
+            <SelectItem value="other">📌 Annat</SelectItem>
+          </SelectContent>
+        </Select>
         <Input
           type="date"
           placeholder="Datum"
           value={date}
           onChange={e => setDate(e.target.value)}
-          className="h-8 text-sm flex-1"
+          className="h-8 text-sm flex-1 min-w-[120px]"
         />
         <Input
           type="number"
@@ -338,8 +360,8 @@ function NewSubtaskForm({
 
 function SubtasksSection({
   course, courseSubtasks, isExpanded, onToggleExpanded,
-  newText, newDate, newHp,
-  setNewText, setNewDate, setNewHp,
+  newText, newDate, newHp, newType,
+  setNewText, setNewDate, setNewHp, setNewType,
   onToggleSubtask, onDeleteSubtask, onAddSubtask,
 }: {
   course: UserCourse;
@@ -349,9 +371,11 @@ function SubtasksSection({
   newText: string;
   newDate: string;
   newHp: string;
+  newType: SubtaskType;
   setNewText: (v: string) => void;
   setNewDate: (v: string) => void;
   setNewHp: (v: string) => void;
+  setNewType: (v: SubtaskType) => void;
   onToggleSubtask: (s: Subtask) => void;
   onDeleteSubtask: (s: Subtask) => void;
   onAddSubtask: (courseId: string) => void;
@@ -370,8 +394,8 @@ function SubtasksSection({
         ))}
         <NewSubtaskForm
           courseId={course.id}
-          text={newText} date={newDate} hp={newHp}
-          setText={setNewText} setDate={setNewDate} setHp={setNewHp}
+          text={newText} date={newDate} hp={newHp} type={newType}
+          setText={setNewText} setDate={setNewDate} setHp={setNewHp} setType={setNewType}
           onAdd={onAddSubtask}
         />
       </CollapsibleContent>
@@ -389,12 +413,14 @@ interface CourseCardProps {
   newText: string;
   newDate: string;
   newHp: string;
+  newType: SubtaskType;
   onUpdateStatus: (id: string, s: CourseStatus) => void;
   onDelete: (id: string, name: string) => void;
   onToggleExpanded: (id: string) => void;
   setNewText: (v: string) => void;
   setNewDate: (v: string) => void;
   setNewHp: (v: string) => void;
+  setNewType: (v: SubtaskType) => void;
   onToggleSubtask: (s: Subtask) => void;
   onDeleteSubtask: (s: Subtask) => void;
   onAddSubtask: (courseId: string) => void;
@@ -403,9 +429,9 @@ interface CourseCardProps {
 function CourseCard(props: CourseCardProps) {
   const {
     course, prereqStatus, blocks, courseNameMap, courseSubtasks, isExpanded,
-    newText, newDate, newHp,
+    newText, newDate, newHp, newType,
     onUpdateStatus, onDelete, onToggleExpanded,
-    setNewText, setNewDate, setNewHp,
+    setNewText, setNewDate, setNewHp, setNewType,
     onToggleSubtask, onDeleteSubtask, onAddSubtask,
   } = props;
 
@@ -463,8 +489,8 @@ function CourseCard(props: CourseCardProps) {
           courseSubtasks={courseSubtasks}
           isExpanded={isExpanded}
           onToggleExpanded={onToggleExpanded}
-          newText={newText} newDate={newDate} newHp={newHp}
-          setNewText={setNewText} setNewDate={setNewDate} setNewHp={setNewHp}
+          newText={newText} newDate={newDate} newHp={newHp} newType={newType}
+          setNewText={setNewText} setNewDate={setNewDate} setNewHp={setNewHp} setNewType={setNewType}
           onToggleSubtask={onToggleSubtask}
           onDeleteSubtask={onDeleteSubtask}
           onAddSubtask={onAddSubtask}
@@ -483,6 +509,7 @@ interface YearSectionProps {
   newSubtaskText: Record<string, string>;
   newSubtaskDate: Record<string, string>;
   newSubtaskHp: Record<string, string>;
+  newSubtaskType: Record<string, SubtaskType>;
   blocksMap: Map<string, string[]>;
   courseNameMap: Map<string, string>;
   getPrereqStatus: (code: string) => PrereqStatus | null;
@@ -492,6 +519,7 @@ interface YearSectionProps {
   setNewSubtaskText: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setNewSubtaskDate: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setNewSubtaskHp: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setNewSubtaskType: React.Dispatch<React.SetStateAction<Record<string, SubtaskType>>>;
   onToggleSubtask: (s: Subtask) => void;
   onDeleteSubtask: (s: Subtask) => void;
   onAddSubtask: (courseId: string) => void;
@@ -500,10 +528,10 @@ interface YearSectionProps {
 function YearSection(props: YearSectionProps) {
   const {
     year, yearCourses, stats, subtasks, expandedCourses,
-    newSubtaskText, newSubtaskDate, newSubtaskHp,
+    newSubtaskText, newSubtaskDate, newSubtaskHp, newSubtaskType,
     blocksMap, courseNameMap, getPrereqStatus,
     onUpdateStatus, onDelete, onToggleExpanded,
-    setNewSubtaskText, setNewSubtaskDate, setNewSubtaskHp,
+    setNewSubtaskText, setNewSubtaskDate, setNewSubtaskHp, setNewSubtaskType,
     onToggleSubtask, onDeleteSubtask, onAddSubtask,
   } = props;
 
@@ -531,12 +559,14 @@ function YearSection(props: YearSectionProps) {
             newText={newSubtaskText[course.id] || ''}
             newDate={newSubtaskDate[course.id] || ''}
             newHp={newSubtaskHp[course.id] || ''}
+            newType={newSubtaskType[course.id] || 'assignment'}
             onUpdateStatus={onUpdateStatus}
             onDelete={onDelete}
             onToggleExpanded={onToggleExpanded}
             setNewText={(v) => setNewSubtaskText(prev => ({ ...prev, [course.id]: v }))}
             setNewDate={(v) => setNewSubtaskDate(prev => ({ ...prev, [course.id]: v }))}
             setNewHp={(v) => setNewSubtaskHp(prev => ({ ...prev, [course.id]: v }))}
+            setNewType={(v) => setNewSubtaskType(prev => ({ ...prev, [course.id]: v }))}
             onToggleSubtask={onToggleSubtask}
             onDeleteSubtask={onDeleteSubtask}
             onAddSubtask={onAddSubtask}
@@ -563,6 +593,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [newSubtaskText, setNewSubtaskText] = useState<Record<string, string>>({});
   const [newSubtaskDate, setNewSubtaskDate] = useState<Record<string, string>>({});
   const [newSubtaskHp, setNewSubtaskHp] = useState<Record<string, string>>({});
+  const [newSubtaskType, setNewSubtaskType] = useState<Record<string, SubtaskType>>({});
 
   // Pending destructive confirmations
   const [pendingCourseDelete, setPendingCourseDelete] = useState<{ id: string; name: string } | null>(null);
@@ -618,7 +649,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     const [coursesRes, subtasksRes] = await Promise.all([
       supabase.from('user_courses').select('*').eq('user_id', userId)
         .order('year', { ascending: true }).order('course_name', { ascending: true }),
-      supabase.from('course_subtasks').select('id, course_id, title, completed, due_date, hp, event_id').eq('user_id', userId)
+      supabase.from('course_subtasks').select('id, course_id, title, completed, due_date, hp, event_id, type').eq('user_id', userId)
         .order('created_at', { ascending: true }),
     ]);
 
@@ -709,13 +740,17 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     }
   };
 
-  const createLinkedEvent = async (text: string, dueDate: string, course: UserCourse) => {
+  const createLinkedEvent = async (
+    text: string, dueDate: string, course: UserCourse,
+    type: SubtaskType, hp: number,
+  ) => {
     const { data, error } = await supabase.from('study_events').insert({
       user_id: userId,
       title: text,
       course_code: course.course_code,
-      event_type: 'assignment',
+      event_type: type,
       due_date: dueDate,
+      hp,
       status: 'upcoming',
     }).select('id').single();
 
@@ -723,23 +758,48 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     return data.id as string;
   };
 
+  // Auto-suggest marking a course as fully completed when delmoment HP reaches course HP
+  const maybeSuggestCourseCompletion = (course: UserCourse, nextSubtasks: Subtask[]) => {
+    if (course.status === 'completed') return;
+    const subs = nextSubtasks.filter(s => s.course_id === course.id);
+    if (subs.length === 0) return;
+    const completedHp = subs.filter(s => s.completed).reduce((sum, s) => sum + Number(s.hp || 0), 0);
+    if (completedHp + 0.001 < course.hp) return;
+    toast.success(`Alla delmoment-HP för ${course.course_name} är klara`, {
+      description: 'Vill du markera hela kursen som avklarad?',
+      action: {
+        label: 'Markera klar',
+        onClick: async () => {
+          const { error } = await supabase.from('user_courses')
+            .update({ status: 'completed' }).eq('id', course.id);
+          if (error) { toast.error('Kunde inte uppdatera kursstatus'); return; }
+          setCourses(prev => prev.map(c => c.id === course.id ? { ...c, status: 'completed' } : c));
+          initialStatusesRef.current.set(course.id, 'completed');
+          toast.success(`${course.course_name} markerad som helt avklarad`);
+        },
+      },
+    });
+  };
+
+
   const handleAddSubtask = async (courseId: string) => {
     const text = (newSubtaskText[courseId] || '').trim();
     if (!text) return;
 
     const dueDate = newSubtaskDate[courseId] || null;
     const hp = Number.parseFloat(newSubtaskHp[courseId] || '0') || 0;
+    const type: SubtaskType = newSubtaskType[courseId] || 'assignment';
     const course = courses.find(c => c.id === courseId);
 
     let eventId: string | null = null;
     if (dueDate && course) {
-      eventId = await createLinkedEvent(text, dueDate, course);
+      eventId = await createLinkedEvent(text, dueDate, course, type, hp);
     }
 
     const { data, error } = await supabase.from('course_subtasks').insert({
       user_id: userId, course_id: courseId, title: text,
-      due_date: dueDate, hp, event_id: eventId,
-    }).select('id, course_id, title, completed, due_date, hp, event_id').single();
+      due_date: dueDate, hp, event_id: eventId, type,
+    }).select('id, course_id, title, completed, due_date, hp, event_id, type').single();
 
     if (error) {
       toast.error('Kunde inte lägga till delmoment');
@@ -750,6 +810,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       setNewSubtaskText(prev => ({ ...prev, [courseId]: '' }));
       setNewSubtaskDate(prev => ({ ...prev, [courseId]: '' }));
       setNewSubtaskHp(prev => ({ ...prev, [courseId]: '' }));
+      setNewSubtaskType(prev => ({ ...prev, [courseId]: 'assignment' }));
       toast.success(dueDate ? 'Delmoment tillagt och kalenderhändelse skapad!' : 'Delmoment tillagt!');
     }
   };
@@ -760,11 +821,16 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       .update({ completed: newCompleted }).eq('id', subtask.id);
 
     if (error) return;
-    setSubtasks(prev => prev.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s));
+    const nextSubtasks = subtasks.map(s => s.id === subtask.id ? { ...s, completed: newCompleted } : s);
+    setSubtasks(nextSubtasks);
     if (subtask.event_id) {
       await supabase.from('study_events')
         .update({ status: newCompleted ? 'complete' : 'upcoming' })
         .eq('id', subtask.event_id);
+    }
+    if (newCompleted) {
+      const course = courses.find(c => c.id === subtask.course_id);
+      if (course) maybeSuggestCourseCompletion(course, nextSubtasks);
     }
   };
 
@@ -913,6 +979,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               newSubtaskText={newSubtaskText}
               newSubtaskDate={newSubtaskDate}
               newSubtaskHp={newSubtaskHp}
+              newSubtaskType={newSubtaskType}
               blocksMap={blocksMap}
               courseNameMap={courseNameMap}
               getPrereqStatus={getPrereqStatus}
@@ -922,6 +989,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               setNewSubtaskText={setNewSubtaskText}
               setNewSubtaskDate={setNewSubtaskDate}
               setNewSubtaskHp={setNewSubtaskHp}
+              setNewSubtaskType={setNewSubtaskType}
               onToggleSubtask={toggleSubtask}
               onDeleteSubtask={(s) => setPendingSubtaskDelete(s)}
               onAddSubtask={handleAddSubtask}

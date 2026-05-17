@@ -58,7 +58,8 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
       hpValue = parsed;
     }
     setLoading(true);
-    const { error } = await supabase.from('study_events').insert({
+    const hpFinal = hpValue ?? 0;
+    const { data: eventRow, error } = await supabase.from('study_events').insert({
       user_id: userId,
       title: title.trim(),
       course_code: courseCode || null,
@@ -67,15 +68,36 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
       due_time: dueTime || null,
       description: description.trim() || null,
       status: 'upcoming',
-      hp: hpValue ?? 0,
-    });
+      hp: hpFinal,
+    }).select('id').single();
 
-    if (error) {
+    if (error || !eventRow) {
       toast.error('Kunde inte spara händelsen');
-    } else {
-      toast.success('Händelse sparad!');
-      navigate('/');
+      setLoading(false);
+      return;
     }
+
+    // If event has HP > 0 and is linked to a course, also create a course subtask (delmoment)
+    let subtaskCreated = false;
+    if (hpFinal > 0 && courseCode) {
+      const course = courses.find(c => c.course_code === courseCode);
+      if (course) {
+        const { error: subErr } = await supabase.from('course_subtasks').insert({
+          user_id: userId,
+          course_id: course.id,
+          title: title.trim(),
+          due_date: dueDate,
+          hp: hpFinal,
+          event_id: eventRow.id,
+          type,
+          completed: false,
+        });
+        if (!subErr) subtaskCreated = true;
+      }
+    }
+
+    toast.success(subtaskCreated ? 'Händelse och delmoment sparade!' : 'Händelse sparad!');
+    navigate('/');
     setLoading(false);
   };
 
@@ -153,7 +175,7 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
                 placeholder="t.ex. 1.5"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Används för att prioritera större moment högre.
+                Används för att prioritera större moment högre. Om kurs är vald och HP &gt; 0 läggs händelsen även till som ett delmoment på kursen.
               </p>
             </div>
 

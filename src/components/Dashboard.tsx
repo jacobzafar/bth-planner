@@ -40,6 +40,7 @@ interface StudyEvent {
 }
 
 interface CourseData {
+  id: string;
   status: string;
   hp: number;
   year: number;
@@ -49,6 +50,7 @@ interface CourseData {
 
 interface LinkedSubtask {
   id: string;
+  course_id: string;
   event_id: string | null;
   hp: number;
   completed: boolean;
@@ -96,8 +98,8 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
   const fetchData = async () => {
     const [eventsRes, coursesRes, subtasksRes, profileRes] = await Promise.all([
       supabase.from('study_events').select('*').eq('user_id', userId).order('due_date', { ascending: true }),
-      supabase.from('user_courses').select('status, hp, year, course_code, course_name').eq('user_id', userId),
-      supabase.from('course_subtasks').select('id, event_id, hp, completed').eq('user_id', userId),
+      supabase.from('user_courses').select('id, status, hp, year, course_code, course_name').eq('user_id', userId),
+      supabase.from('course_subtasks').select('id, course_id, event_id, hp, completed').eq('user_id', userId),
       supabase.from('profiles').select('program_name').eq('user_id', userId).maybeSingle(),
     ]);
 
@@ -124,8 +126,24 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     return map;
   }, [programName]);
 
-  const completedHp = courses.filter(c => c.status === 'completed').reduce((sum, c) => sum + c.hp, 0);
-  const partlyHp = courses.filter(c => c.status === 'partly').reduce((sum, c) => sum + c.hp, 0);
+  // Avoid double counting: completed courses count full HP; for non-completed
+  // courses, count completed delmoment HP as "partly" (capped by course HP).
+  const completedSubHpByCourse = new Map<string, number>();
+  for (const s of subtasks) {
+    if (s.completed && Number(s.hp) > 0) {
+      completedSubHpByCourse.set(s.course_id, (completedSubHpByCourse.get(s.course_id) || 0) + Number(s.hp));
+    }
+  }
+  let completedHp = 0;
+  let partlyHp = 0;
+  for (const c of courses) {
+    if (c.status === 'completed') {
+      completedHp += c.hp;
+    } else {
+      const subDone = completedSubHpByCourse.get(c.id) || 0;
+      if (subDone > 0) partlyHp += Math.min(c.hp, subDone);
+    }
+  }
   const totalHp = totalProgramHp || courses.reduce((sum, c) => sum + c.hp, 0);
   const progressPercent = totalHp > 0 ? Math.round((completedHp / totalHp) * 100) : 0;
 
@@ -236,6 +254,12 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     const { error } = await supabase.from('study_events').update({ status: newStatus }).eq('id', selected.id);
     setSaving(false);
     if (error) { toast.error('Kunde inte uppdatera status'); return; }
+    // Sync linked subtask
+    const linkedSubtask = subtasks.find(s => s.event_id === selected.id);
+    if (linkedSubtask) {
+      await supabase.from('course_subtasks').update({ completed: newStatus === 'complete' }).eq('id', linkedSubtask.id);
+      setSubtasks(prev => prev.map(s => s.id === linkedSubtask.id ? { ...s, completed: newStatus === 'complete' } : s));
+    }
     setEvents(prev => prev.map(e => e.id === selected.id ? { ...e, status: newStatus } : e));
     setSelected({ ...selected, status: newStatus });
     toast.success(newStatus === 'complete' ? 'Markerad som klar' : 'Markerad som kommande');
@@ -276,8 +300,23 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
       status: fStatus,
     };
     const { error } = await supabase.from('study_events').update(updates).eq('id', selected.id);
+    if (error) { setSaving(false); toast.error('Kunde inte spara ändringar'); return; }
+    // Sync linked subtask
+    const linkedSubtask = subtasks.find(s => s.event_id === selected.id);
+    if (linkedSubtask) {
+      const subUpdates: Record<string, unknown> = {
+        title: updates.title,
+        due_date: updates.due_date,
+        hp: updates.hp,
+        type: updates.event_type,
+        completed: updates.status === 'complete',
+      };
+      await supabase.from('course_subtasks').update(subUpdates).eq('id', linkedSubtask.id);
+      setSubtasks(prev => prev.map(s => s.id === linkedSubtask.id
+        ? { ...s, hp: updates.hp, completed: updates.status === 'complete' }
+        : s));
+    }
     setSaving(false);
-    if (error) { toast.error('Kunde inte spara ändringar'); return; }
     const updated = { ...selected, ...updates };
     setEvents(prev => prev.map(ev => ev.id === selected.id ? updated : ev));
     setSelected(updated);
@@ -565,6 +604,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
                   <Badge variant={selected.status === 'complete' ? 'default' : 'secondary'}>
                     {STATUS_LABEL[selected.status] || selected.status}
                   </Badge>
+                  {subtasks.some(s => s.event_id === selected.id) && (
+                    <Badge variant="outline">🔗 Kopplad till delmoment</Badge>
+                  )}
                 </DialogDescription>
               </DialogHeader>
 
