@@ -54,20 +54,6 @@ interface LinkedSubtask {
   completed: boolean;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  exam: 'Tenta',
-  assignment: 'Uppgift',
-  lab: 'Labb',
-  seminar: 'Seminarium',
-  lecture: 'Föreläsning',
-  other: 'Annat',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  upcoming: 'Kommande',
-  complete: 'Klar',
-  overdue: 'Försenad',
-};
 
 export default function Dashboard({ userId, totalProgramHp, startYear }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
