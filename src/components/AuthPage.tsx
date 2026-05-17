@@ -30,8 +30,8 @@ export default function AuthPage({ initialMode = 'login', onBack }: AuthPageProp
       toast.error('Fyll i lösenord');
       return false;
     }
-    if (mode === 'signup' && password.length < 6) {
-      toast.error('Lösenordet måste vara minst 6 tecken');
+    if (mode === 'signup' && password.length < 4) {
+      toast.error('Lösenordet måste vara minst 4 tecken');
       return false;
     }
     return true;
