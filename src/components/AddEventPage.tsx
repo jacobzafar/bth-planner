@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { EVENT_TYPE_OPTIONS, parseHpInput } from '@/lib/events';
 
 interface AddEventPageProps {
   userId: string;
@@ -48,17 +49,13 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
     if (dueDate < today) {
       toast.warning('Varning: Datumet har redan passerat');
     }
-    let hpValue: number | null = null;
-    if (hp.trim()) {
-      const parsed = parseFloat(hp.replace(',', '.'));
-      if (isNaN(parsed) || parsed < 0) {
-        toast.error('Ogiltigt HP-värde');
-        return;
-      }
-      hpValue = parsed;
+    const hpParsed = parseHpInput(hp);
+    if (hpParsed.ok === false) {
+      toast.error(hpParsed.error);
+      return;
     }
+    const hpFinal = hpParsed.value;
     setLoading(true);
-    const hpFinal = hpValue ?? 0;
     const { data: eventRow, error } = await supabase.from('study_events').insert({
       user_id: userId,
       title: title.trim(),
@@ -141,12 +138,9 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="exam">📋 Tenta</SelectItem>
-                  <SelectItem value="assignment">📝 Uppgift</SelectItem>
-                  <SelectItem value="lab">🧪 Labb</SelectItem>
-                  <SelectItem value="seminar">💬 Seminarium</SelectItem>
-                  <SelectItem value="lecture">🎓 Föreläsning</SelectItem>
-                  <SelectItem value="other">📌 Annat</SelectItem>
+                  {EVENT_TYPE_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

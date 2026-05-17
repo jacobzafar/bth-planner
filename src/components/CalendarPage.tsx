@@ -1,10 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -19,6 +15,23 @@ import { sv } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import EventFormFields from '@/components/EventFormFields';
+import { EVENT_TYPE_LABEL, EVENT_STATUS_LABEL, parseHpInput } from '@/lib/events';
+
+const TYPE_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(EVENT_TYPE_LABEL).map(([k, v]) => [k, `${typeEmoji(k)} ${v}`]),
+);
+function typeEmoji(k: string): string {
+  switch (k) {
+    case 'exam': return '📋';
+    case 'assignment': return '📝';
+    case 'lab': return '🧪';
+    case 'seminar': return '💬';
+    case 'lecture': return '🎓';
+    default: return '📌';
+  }
+}
+const STATUS_LABEL = EVENT_STATUS_LABEL;
 
 interface CalendarPageProps {
   userId: string;
@@ -42,20 +55,6 @@ interface UserCourse {
   course_name: string;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  exam: '📋 Tenta',
-  assignment: '📝 Uppgift',
-  lab: '🧪 Labb',
-  seminar: '💬 Seminarium',
-  lecture: '🎓 Föreläsning',
-  other: '📌 Annat',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  upcoming: 'Kommande',
-  complete: 'Klar',
-  overdue: 'Försenad',
-};
 
 export default function CalendarPage({ userId }: CalendarPageProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -158,12 +157,9 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
     e.preventDefault();
     if (!selected) return;
     if (!fTitle.trim() || !fDate) { toast.error('Fyll i alla obligatoriska fält'); return; }
-    let hpValue = 0;
-    if (fHp.trim()) {
-      const parsed = parseFloat(fHp.replace(',', '.'));
-      if (isNaN(parsed) || parsed < 0) { toast.error('Ogiltigt HP-värde'); return; }
-      hpValue = parsed;
-    }
+    const hpParsed = parseHpInput(fHp);
+    if (hpParsed.ok === false) { toast.error(hpParsed.error); return; }
+    const hpValue = hpParsed.value;
     setSaving(true);
     const updates = {
       title: fTitle.trim(),
@@ -347,67 +343,17 @@ export default function CalendarPage({ userId }: CalendarPageProps) {
               <DialogHeader>
                 <DialogTitle className="font-heading">Redigera händelse</DialogTitle>
               </DialogHeader>
-              <div>
-                <Label htmlFor="e-title">Titel *</Label>
-                <Input id="e-title" value={fTitle} onChange={e => setFTitle(e.target.value)} required />
-              </div>
-              <div>
-                <Label htmlFor="e-course">Kurs</Label>
-                <Select value={fCourse} onValueChange={setFCourse}>
-                  <SelectTrigger><SelectValue placeholder="Välj kurs" /></SelectTrigger>
-                  <SelectContent>
-                    {courses.map(c => (
-                      <SelectItem key={c.id} value={c.course_code}>
-                        {c.course_code} - {c.course_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="e-type">Typ</Label>
-                <Select value={fType} onValueChange={setFType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="exam">📋 Tenta</SelectItem>
-                    <SelectItem value="assignment">📝 Uppgift</SelectItem>
-                    <SelectItem value="lab">🧪 Labb</SelectItem>
-                    <SelectItem value="seminar">💬 Seminarium</SelectItem>
-                    <SelectItem value="lecture">🎓 Föreläsning</SelectItem>
-                    <SelectItem value="other">📌 Annat</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="e-date">Datum *</Label>
-                  <Input id="e-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} required />
-                </div>
-                <div>
-                  <Label htmlFor="e-time">Tid</Label>
-                  <Input id="e-time" type="time" value={fTime} onChange={e => setFTime(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="e-hp">Omfattning / HP</Label>
-                <Input
-                  id="e-hp"
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  inputMode="decimal"
-                  value={fHp}
-                  onChange={e => setFHp(e.target.value)}
-                  placeholder="t.ex. 1.5"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Används för att prioritera större moment högre.
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="e-desc">Beskrivning</Label>
-                <Textarea id="e-desc" value={fDesc} onChange={e => setFDesc(e.target.value)} rows={3} />
-              </div>
+              <EventFormFields
+                idPrefix="e"
+                courses={courses}
+                fTitle={fTitle} setFTitle={setFTitle}
+                fCourse={fCourse} setFCourse={setFCourse}
+                fType={fType} setFType={setFType}
+                fDate={fDate} setFDate={setFDate}
+                fTime={fTime} setFTime={setFTime}
+                fHp={fHp} setFHp={setFHp}
+                fDesc={fDesc} setFDesc={setFDesc}
+              />
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button type="button" variant="outline" onClick={() => setEditing(false)} className="gap-2">
                   <X className="h-4 w-4" /> Avbryt

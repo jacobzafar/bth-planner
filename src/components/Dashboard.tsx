@@ -4,10 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -19,6 +15,8 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
 import RiskOverview from '@/components/RiskOverview';
+import EventFormFields from '@/components/EventFormFields';
+import { EVENT_TYPE_LABEL as TYPE_LABEL, EVENT_STATUS_LABEL as STATUS_LABEL, parseHpInput } from '@/lib/events';
 
 interface DashboardProps {
   userId: string;
@@ -56,20 +54,6 @@ interface LinkedSubtask {
   completed: boolean;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  exam: 'Tenta',
-  assignment: 'Uppgift',
-  lab: 'Labb',
-  seminar: 'Seminarium',
-  lecture: 'Föreläsning',
-  other: 'Annat',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  upcoming: 'Kommande',
-  complete: 'Klar',
-  overdue: 'Försenad',
-};
 
 export default function Dashboard({ userId, totalProgramHp, startYear }: DashboardProps) {
   const [events, setEvents] = useState<StudyEvent[]>([]);
@@ -234,21 +218,6 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     return diff > 7 && diff <= 14;
   }).length;
 
-  const handleComplete = async (id: string) => {
-    const { error } = await supabase.from('study_events').update({ status: 'complete' }).eq('id', id);
-    if (error) {
-      toast.error('Kunde inte uppdatera');
-    } else {
-      const linkedSubtask = subtasks.find(s => s.event_id === id);
-      if (linkedSubtask) {
-        await supabase.from('course_subtasks').update({ completed: true }).eq('id', linkedSubtask.id);
-      }
-      toast.success('Markerad som klar!');
-      setSelected(null);
-      fetchData();
-    }
-  };
-
   const toggleStatus = async () => {
     if (!selected) return;
     const newStatus = selected.status === 'complete' ? 'upcoming' : 'complete';
@@ -284,12 +253,9 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     e.preventDefault();
     if (!selected) return;
     if (!fTitle.trim() || !fDate) { toast.error('Fyll i alla obligatoriska fält'); return; }
-    let hpValue = 0;
-    if (fHp.trim()) {
-      const parsed = parseFloat(fHp.replace(',', '.'));
-      if (isNaN(parsed) || parsed < 0) { toast.error('Ogiltigt HP-värde'); return; }
-      hpValue = parsed;
-    }
+    const hpParsed = parseHpInput(fHp);
+    if (hpParsed.ok === false) { toast.error(hpParsed.error); return; }
+    const hpValue = hpParsed.value;
     setSaving(true);
     const updates = {
       title: fTitle.trim(),
@@ -334,7 +300,6 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     lecture: 'bg-muted text-foreground',
   };
 
-  // alias kept for backward compat in JSX
   const getEventHp = getHpForEvent;
 
   const hoursUntil = (event: StudyEvent) =>
@@ -640,7 +605,7 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
                     }
                     return (
                       <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
-                        {reasons.map((r, idx) => <li key={idx}>{r}</li>)}
+                        {reasons.map(r => <li key={r}>{r}</li>)}
                       </ul>
                     );
                   })()}
@@ -666,82 +631,20 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
               <DialogHeader>
                 <DialogTitle className="font-heading">Redigera händelse</DialogTitle>
               </DialogHeader>
-              <div>
-                <Label htmlFor="d-title">Titel *</Label>
-                <Input id="d-title" value={fTitle} onChange={e => setFTitle(e.target.value)} required />
-              </div>
-              <div>
-                <Label htmlFor="d-course">Kurs</Label>
-                <Select value={fCourse} onValueChange={setFCourse}>
-                  <SelectTrigger><SelectValue placeholder="Välj kurs" /></SelectTrigger>
-                  <SelectContent>
-                    {courses
-                      .filter(c => c.course_code && c.course_name)
-                      .map(c => (
-                        <SelectItem key={c.course_code} value={c.course_code!}>
-                          {c.course_code} - {c.course_name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="d-type">Typ</Label>
-                  <Select value={fType} onValueChange={setFType}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="exam">📋 Tenta</SelectItem>
-                      <SelectItem value="assignment">📝 Uppgift</SelectItem>
-                      <SelectItem value="lab">🧪 Labb</SelectItem>
-                      <SelectItem value="seminar">💬 Seminarium</SelectItem>
-                      <SelectItem value="lecture">🎓 Föreläsning</SelectItem>
-                      <SelectItem value="other">📌 Annat</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="d-status">Status</Label>
-                  <Select value={fStatus} onValueChange={setFStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="upcoming">Kommande</SelectItem>
-                      <SelectItem value="complete">Klar</SelectItem>
-                      <SelectItem value="overdue">Försenad</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="d-date">Datum *</Label>
-                  <Input id="d-date" type="date" value={fDate} onChange={e => setFDate(e.target.value)} required />
-                </div>
-                <div>
-                  <Label htmlFor="d-time">Tid</Label>
-                  <Input id="d-time" type="time" value={fTime} onChange={e => setFTime(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="d-hp">Omfattning / HP</Label>
-                <Input
-                  id="d-hp"
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  inputMode="decimal"
-                  value={fHp}
-                  onChange={e => setFHp(e.target.value)}
-                  placeholder="t.ex. 1.5"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Används för att prioritera större moment högre.
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="d-desc">Beskrivning</Label>
-                <Textarea id="d-desc" value={fDesc} onChange={e => setFDesc(e.target.value)} rows={3} />
-              </div>
+              <EventFormFields
+                idPrefix="d"
+                courses={courses
+                  .filter(c => c.course_code && c.course_name)
+                  .map(c => ({ course_code: c.course_code!, course_name: c.course_name! }))}
+                fTitle={fTitle} setFTitle={setFTitle}
+                fCourse={fCourse} setFCourse={setFCourse}
+                fType={fType} setFType={setFType}
+                fDate={fDate} setFDate={setFDate}
+                fTime={fTime} setFTime={setFTime}
+                fHp={fHp} setFHp={setFHp}
+                fDesc={fDesc} setFDesc={setFDesc}
+                fStatus={fStatus} setFStatus={setFStatus}
+              />
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button type="button" variant="outline" onClick={() => setEditing(false)} className="gap-2">
                   <X className="h-4 w-4" /> Avbryt

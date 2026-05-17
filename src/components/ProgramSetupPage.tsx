@@ -118,6 +118,8 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
           const program = bthPrograms[selected];
           const totalHp = program.courses.reduce((s, c) => s + c.hp, 0);
           const est = estimateStudyYear(Number.parseInt(startYear, 10));
+          const semesterLabel = est.semester === 1 ? 'HT' : 'VT';
+          const studyYearLabel = est.uncertain ? est.label : `År ${est.year} (${semesterLabel})`;
           return (
             <Card className="mb-4 border-primary/40 bg-primary/5">
               <CardContent className="p-4 space-y-1">
@@ -125,9 +127,7 @@ export default function ProgramSetupPage({ userId, onComplete }: ProgramSetupPag
                 <div className="text-xs text-muted-foreground grid grid-cols-2 gap-y-1">
                   <span>Startår</span><span className="text-foreground text-right">{startYear}</span>
                   <span>Uppskattat studieår</span>
-                  <span className="text-foreground text-right">
-                    {est.uncertain ? est.label : `År ${est.year} (${est.semester === 1 ? 'HT' : 'VT'})`}
-                  </span>
+                  <span className="text-foreground text-right">{studyYearLabel}</span>
                   <span>Antal kurser</span><span className="text-foreground text-right">{program.courses.length}</span>
                   <span>Totalt HP</span><span className="text-foreground text-right">{totalHp}</span>
                 </div>
