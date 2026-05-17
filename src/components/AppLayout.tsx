@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar, BookOpen, Settings, LogOut, GraduationCap, CalendarRange } from 'lucide-react';
+import { LayoutDashboard, Calendar, BookOpen, Settings, LogOut, GraduationCap, CalendarRange, Users, ShoppingBag } from 'lucide-react';
 import { estimateStudyYear } from '@/lib/studyYear';
 
 interface AppLayoutProps {
@@ -14,6 +14,8 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Översikt' },
   { to: '/kurser', icon: BookOpen, label: 'Kurser' },
   { to: '/kalender', icon: Calendar, label: 'Kalender' },
+  { to: '/deltagare', icon: Users, label: 'Deltagare' },
+  { to: '/bokhandel', icon: ShoppingBag, label: 'Bokhandel' },
   { to: '/installningar', icon: Settings, label: 'Inställningar' },
 ];
 
