@@ -7,7 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
-import { paymentStatusLabel, orderStatusLabel, formatSek } from '@/lib/marketplace';
+import { PAYMENT_STATUS_LABEL, ORDER_STATUS_LABEL } from '@/lib/marketplace';
+const formatSek = (n: number | string) => `${Number(n).toFixed(2)} kr`;
+const paymentStatusLabel = (s: string) => PAYMENT_STATUS_LABEL[s] || s;
+const orderStatusLabel = (s: string) => ORDER_STATUS_LABEL[s] || s;
 import { Loader2, Shield, ShieldOff, Trash2 } from 'lucide-react';
 
 interface Props { userId: string }
@@ -31,6 +34,7 @@ type Order = {
   id: string; listing_id: string; buyer_user_id: string; seller_user_id: string;
   gross_amount_sek: number; platform_fee_sek: number; seller_net_sek: number;
   payment_status: string; order_status: string; swish_reference: string | null;
+  buyer_confirmed_delivery_at: string | null;
   created_at: string;
 };
 
