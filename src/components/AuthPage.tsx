@@ -93,6 +93,15 @@ export default function AuthPage({ initialMode = 'login', onBack }: AuthPageProp
         <GraduationCap className="h-8 w-8 text-primary" />
         <span className="font-heading font-bold text-2xl text-foreground">BTH Studieplanerare</span>
       </div>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-4 text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+        >
+          <ArrowLeft className="h-3 w-3" /> Tillbaka till startsidan
+        </button>
+      )}
 
       <Card className="w-full max-w-md animate-slide-up">
         <CardHeader>
