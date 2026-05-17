@@ -269,7 +269,7 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     if (!selected) return;
     if (!fTitle.trim() || !fDate) { toast.error('Fyll i alla obligatoriska fält'); return; }
     const hpParsed = parseHpInput(fHp);
-    if (!hpParsed.ok) { toast.error(hpParsed.error); return; }
+    if (hpParsed.ok === false) { toast.error(hpParsed.error); return; }
     const hpValue = hpParsed.value;
     setSaving(true);
     const updates = {
