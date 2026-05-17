@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { EVENT_TYPE_OPTIONS, parseHpInput } from '@/lib/events';
 
 interface AddEventPageProps {
   userId: string;
