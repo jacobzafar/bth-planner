@@ -300,8 +300,23 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
       status: fStatus,
     };
     const { error } = await supabase.from('study_events').update(updates).eq('id', selected.id);
+    if (error) { setSaving(false); toast.error('Kunde inte spara ändringar'); return; }
+    // Sync linked subtask
+    const linkedSubtask = subtasks.find(s => s.event_id === selected.id);
+    if (linkedSubtask) {
+      const subUpdates: Record<string, unknown> = {
+        title: updates.title,
+        due_date: updates.due_date,
+        hp: updates.hp,
+        type: updates.event_type,
+        completed: updates.status === 'complete',
+      };
+      await supabase.from('course_subtasks').update(subUpdates).eq('id', linkedSubtask.id);
+      setSubtasks(prev => prev.map(s => s.id === linkedSubtask.id
+        ? { ...s, hp: updates.hp, completed: updates.status === 'complete' }
+        : s));
+    }
     setSaving(false);
-    if (error) { toast.error('Kunde inte spara ändringar'); return; }
     const updated = { ...selected, ...updates };
     setEvents(prev => prev.map(ev => ev.id === selected.id ? updated : ev));
     setSelected(updated);
