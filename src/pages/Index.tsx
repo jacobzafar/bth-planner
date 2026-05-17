@@ -3,6 +3,8 @@ import { Routes, Route } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import AuthPage from '@/components/AuthPage';
+import LandingPage from '@/components/LandingPage';
+import IntroAnimation from '@/components/IntroAnimation';
 import ProgramSetupPage from '@/components/ProgramSetupPage';
 import CourseStatusPage from '@/components/CourseStatusPage';
 import AppLayout from '@/components/AppLayout';
@@ -13,17 +15,24 @@ import { bthPrograms } from '@/lib/programs';
 import CalendarPage from '@/components/CalendarPage';
 import SettingsPage from '@/components/SettingsPage';
 
+const INTRO_KEY = 'bth_intro_shown';
+
 export default function Index() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupComplete, setSetupComplete] = useState<boolean | null>(null);
   const [profileData, setProfileData] = useState<{ program_name: string | null; start_year: number | null } | null>(null);
+  const [authView, setAuthView] = useState<null | 'login' | 'signup'>(null);
+  const [showIntro, setShowIntro] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (session) {
-        // Defer profile check
+        if (event === 'SIGNED_IN' || !sessionStorage.getItem(INTRO_KEY)) {
+          sessionStorage.setItem(INTRO_KEY, '1');
+          setShowIntro(true);
+        }
         setTimeout(() => checkProfile(session.user.id), 0);
       } else {
         setSetupComplete(null);
@@ -35,6 +44,10 @@ export default function Index() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
+        if (!sessionStorage.getItem(INTRO_KEY)) {
+          sessionStorage.setItem(INTRO_KEY, '1');
+          setShowIntro(true);
+        }
         checkProfile(session.user.id);
       } else {
         setLoading(false);
@@ -57,6 +70,7 @@ export default function Index() {
   };
 
   const handleLogout = async () => {
+    sessionStorage.removeItem(INTRO_KEY);
     await supabase.auth.signOut();
   };
 
@@ -70,18 +84,29 @@ export default function Index() {
 
   // Not logged in
   if (!session) {
-    return <AuthPage />;
+    if (authView) {
+      return <AuthPage initialMode={authView} onBack={() => setAuthView(null)} />;
+    }
+    return (
+      <LandingPage
+        onLogin={() => setAuthView('login')}
+        onSignup={() => setAuthView('signup')}
+      />
+    );
   }
 
   // Logged in but hasn't selected program
   if (!setupComplete) {
     return (
-      <ProgramSetupPage
-        userId={session.user.id}
-        onComplete={() => {
-          checkProfile(session.user.id);
-        }}
-      />
+      <>
+        {showIntro && <IntroAnimation onDone={() => setShowIntro(false)} />}
+        <ProgramSetupPage
+          userId={session.user.id}
+          onComplete={() => {
+            checkProfile(session.user.id);
+          }}
+        />
+      </>
     );
   }
 
@@ -92,14 +117,17 @@ export default function Index() {
 
   // Main app
   return (
-    <AppLayout programName={pName} startYear={profileData?.start_year ?? null} onLogout={handleLogout}>
-      <Routes>
-        <Route path="/" element={<Dashboard userId={session.user.id} totalProgramHp={totalProgramHp} startYear={profileData?.start_year ?? null} />} />
-        <Route path="/kurser" element={<CourseStatusPage userId={session.user.id} programName={pName} />} />
-        <Route path="/add-event" element={<AddEventPage userId={session.user.id} />} />
-        <Route path="/kalender" element={<CalendarPage userId={session.user.id} />} />
-        <Route path="/installningar" element={<SettingsPage userId={session.user.id} email={session.user.email} programName={pName} startYear={profileData?.start_year || 0} onLogout={handleLogout} onResetPlan={() => checkProfile(session.user.id)} />} />
-      </Routes>
-    </AppLayout>
+    <>
+      {showIntro && <IntroAnimation onDone={() => setShowIntro(false)} />}
+      <AppLayout programName={pName} startYear={profileData?.start_year ?? null} onLogout={handleLogout}>
+        <Routes>
+          <Route path="/" element={<Dashboard userId={session.user.id} totalProgramHp={totalProgramHp} startYear={profileData?.start_year ?? null} />} />
+          <Route path="/kurser" element={<CourseStatusPage userId={session.user.id} programName={pName} />} />
+          <Route path="/add-event" element={<AddEventPage userId={session.user.id} />} />
+          <Route path="/kalender" element={<CalendarPage userId={session.user.id} />} />
+          <Route path="/installningar" element={<SettingsPage userId={session.user.id} email={session.user.email} programName={pName} startYear={profileData?.start_year || 0} onLogout={handleLogout} onResetPlan={() => checkProfile(session.user.id)} />} />
+        </Routes>
+      </AppLayout>
+    </>
   );
 }

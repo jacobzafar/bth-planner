@@ -19,6 +19,7 @@ const navItems = [
 
 export default function AppLayout({ children, programName, startYear, onLogout }: AppLayoutProps) {
   const location = useLocation();
+  const cleanProgramName = programName.split(',')[0].trim();
   const estimate = startYear ? estimateStudyYear(startYear) : null;
   const showBadge = estimate && !estimate.uncertain;
 
@@ -28,14 +29,14 @@ export default function AppLayout({ children, programName, startYear, onLogout }
         <div className="container flex items-center justify-between h-14 gap-3">
           <Link to="/" className="flex items-center gap-2 shrink-0">
             <GraduationCap className="h-6 w-6 text-primary" />
-            <span className="font-heading font-bold text-lg text-foreground hidden sm:inline">BTH</span>
+            <span className="font-heading font-bold text-base sm:text-lg text-foreground">BTH Studieplanerare</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 justify-end">
             <span
               className="text-xs sm:text-sm text-muted-foreground truncate min-w-0 hidden sm:inline"
-              title={programName}
+              title={cleanProgramName}
             >
-              {programName}
+              {cleanProgramName}
             </span>
             {showBadge && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground shrink-0">
@@ -60,7 +61,7 @@ export default function AppLayout({ children, programName, startYear, onLogout }
         </div>
         {/* Mobile program name row */}
         <div className="container pb-2 sm:hidden">
-          <p className="text-xs text-muted-foreground truncate" title={programName}>{programName}</p>
+          <p className="text-xs text-muted-foreground truncate" title={cleanProgramName}>{cleanProgramName}</p>
         </div>
       </header>
 

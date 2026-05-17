@@ -9,8 +9,13 @@ import { toast } from 'sonner';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
-export default function AuthPage() {
-  const [mode, setMode] = useState<Mode>('login');
+interface AuthPageProps {
+  initialMode?: Mode;
+  onBack?: () => void;
+}
+
+export default function AuthPage({ initialMode = 'login', onBack }: AuthPageProps = {}) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -88,6 +93,15 @@ export default function AuthPage() {
         <GraduationCap className="h-8 w-8 text-primary" />
         <span className="font-heading font-bold text-2xl text-foreground">BTH Studieplanerare</span>
       </div>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-4 text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+        >
+          <ArrowLeft className="h-3 w-3" /> Tillbaka till startsidan
+        </button>
+      )}
 
       <Card className="w-full max-w-md animate-slide-up">
         <CardHeader>
