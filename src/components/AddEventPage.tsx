@@ -138,12 +138,9 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="exam">📋 Tenta</SelectItem>
-                  <SelectItem value="assignment">📝 Uppgift</SelectItem>
-                  <SelectItem value="lab">🧪 Labb</SelectItem>
-                  <SelectItem value="seminar">💬 Seminarium</SelectItem>
-                  <SelectItem value="lecture">🎓 Föreläsning</SelectItem>
-                  <SelectItem value="other">📌 Annat</SelectItem>
+                  {EVENT_TYPE_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
