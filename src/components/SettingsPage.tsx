@@ -133,6 +133,8 @@ export default function SettingsPage({ userId, email, programName, startYear, on
         </CardContent>
       </Card>
 
+      <VisibilityCard userId={userId} />
+
       {/* Study plan */}
       <Card>
         <CardHeader>
