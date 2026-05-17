@@ -49,15 +49,12 @@ export default function AddEventPage({ userId }: AddEventPageProps) {
     if (dueDate < today) {
       toast.warning('Varning: Datumet har redan passerat');
     }
-    let hpValue: number | null = null;
-    if (hp.trim()) {
-      const parsed = parseFloat(hp.replace(',', '.'));
-      if (isNaN(parsed) || parsed < 0) {
-        toast.error('Ogiltigt HP-värde');
-        return;
-      }
-      hpValue = parsed;
+    const hpParsed = parseHpInput(hp);
+    if (hpParsed.ok === false) {
+      toast.error(hpParsed.error);
+      return;
     }
+    const hpValue = hpParsed.value;
     setLoading(true);
     const hpFinal = hpValue ?? 0;
     const { data: eventRow, error } = await supabase.from('study_events').insert({
