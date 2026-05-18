@@ -64,6 +64,7 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
   const [selected, setSelected] = useState<StudyEvent | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [metricDetail, setMetricDetail] = useState<null | 'thisWeek' | 'nextWeek' | 'completed' | 'total'>(null);
 
   // edit form state
   const [fTitle, setFTitle] = useState('');
