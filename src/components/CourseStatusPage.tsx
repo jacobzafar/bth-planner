@@ -17,6 +17,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
+import { resolveSubject, primarySubject } from '@/lib/prerequisites';
 
 interface CourseStatusPageProps {
   userId: string;
@@ -63,11 +64,11 @@ interface PrereqStatus {
 // ---------- Helpers ----------
 
 function buildAllBthCourses() {
-  const map = new Map<string, { name: string; code: string; hp: number }>();
+  const map = new Map<string, { name: string; code: string; hp: number; subject?: string }>();
   for (const program of bthPrograms) {
     for (const course of program.courses) {
       if (!map.has(course.code)) {
-        map.set(course.code, { name: course.name, code: course.code, hp: course.hp });
+        map.set(course.code, { name: course.name, code: course.code, hp: course.hp, subject: course.subject });
       }
     }
   }
@@ -81,6 +82,15 @@ function buildPrereqMap(programTemplate: typeof bthPrograms[number] | null) {
     if (course.prerequisites && course.prerequisites.length > 0) {
       map.set(course.code, course.prerequisites);
     }
+  }
+  return map;
+}
+
+function buildOriginalReqMap(programTemplate: typeof bthPrograms[number] | null) {
+  const map = new Map<string, string>();
+  if (!programTemplate) return map;
+  for (const course of programTemplate.courses) {
+    if (course.originalRequirementsText) map.set(course.code, course.originalRequirementsText);
   }
   return map;
 }
@@ -211,15 +221,17 @@ function AddCourseDialog({
 }
 
 function PrereqInfo({
-  prereqStatus, blocks, courseNameMap,
+  prereqStatus, blocks, courseNameMap, originalText,
 }: {
   prereqStatus: PrereqStatus | null;
   blocks: string[] | undefined;
   courseNameMap: Map<string, string>;
+  originalText?: string | null;
 }) {
   const hasPrereqs = prereqStatus && prereqStatus.prereqs.length > 0;
   const hasBlocks = blocks && blocks.length > 0;
-  if (!hasPrereqs && !hasBlocks) return null;
+  const hasOriginal = !!originalText;
+  if (!hasPrereqs && !hasBlocks && !hasOriginal) return null;
 
   return (
     <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
@@ -242,6 +254,11 @@ function PrereqInfo({
             })}
           </span>
         </div>
+      )}
+      {hasOriginal && (
+        <p className="text-xs text-muted-foreground italic pl-4">
+          Originalkrav: {originalText}
+        </p>
       )}
       {hasBlocks && (
         <div className="flex items-start gap-1.5 text-xs">
@@ -410,6 +427,8 @@ interface CourseCardProps {
   courseNameMap: Map<string, string>;
   courseSubtasks: Subtask[];
   isExpanded: boolean;
+  subjectPrimary?: string | null;
+  originalReqText?: string | null;
   newText: string;
   newDate: string;
   newHp: string;
@@ -429,6 +448,7 @@ interface CourseCardProps {
 function CourseCard(props: CourseCardProps) {
   const {
     course, prereqStatus, blocks, courseNameMap, courseSubtasks, isExpanded,
+    subjectPrimary, originalReqText,
     newText, newDate, newHp, newType,
     onUpdateStatus, onDelete, onToggleExpanded,
     setNewText, setNewDate, setNewHp, setNewType,
@@ -444,9 +464,12 @@ function CourseCard(props: CourseCardProps) {
       <CardContent className="p-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[180px]">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
               <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
+              {subjectPrimary && subjectPrimary !== 'Okänt huvudområde' && (
+                <Badge variant="secondary" className="text-xs">{subjectPrimary}</Badge>
+              )}
               {courseSubtasks.length > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {completedSubs}/{courseSubtasks.length} delmoment
@@ -482,7 +505,12 @@ function CourseCard(props: CourseCardProps) {
           </div>
         </div>
 
-        <PrereqInfo prereqStatus={prereqStatus} blocks={blocks} courseNameMap={courseNameMap} />
+        <PrereqInfo
+          prereqStatus={prereqStatus}
+          blocks={blocks}
+          courseNameMap={courseNameMap}
+          originalText={originalReqText}
+        />
 
         <SubtasksSection
           course={course}
@@ -512,6 +540,8 @@ interface YearSectionProps {
   newSubtaskType: Record<string, SubtaskType>;
   blocksMap: Map<string, string[]>;
   courseNameMap: Map<string, string>;
+  subjectMap: Map<string, string>;
+  originalReqMap: Map<string, string>;
   getPrereqStatus: (code: string) => PrereqStatus | null;
   onUpdateStatus: (id: string, s: CourseStatus) => void;
   onDelete: (id: string, name: string) => void;
@@ -529,7 +559,7 @@ function YearSection(props: YearSectionProps) {
   const {
     year, yearCourses, stats, subtasks, expandedCourses,
     newSubtaskText, newSubtaskDate, newSubtaskHp, newSubtaskType,
-    blocksMap, courseNameMap, getPrereqStatus,
+    blocksMap, courseNameMap, subjectMap, originalReqMap, getPrereqStatus,
     onUpdateStatus, onDelete, onToggleExpanded,
     setNewSubtaskText, setNewSubtaskDate, setNewSubtaskHp, setNewSubtaskType,
     onToggleSubtask, onDeleteSubtask, onAddSubtask,
@@ -556,6 +586,8 @@ function YearSection(props: YearSectionProps) {
             courseNameMap={courseNameMap}
             courseSubtasks={subtasks.filter(s => s.course_id === course.id)}
             isExpanded={expandedCourses.has(course.id)}
+            subjectPrimary={subjectMap.get(course.course_code) || null}
+            originalReqText={originalReqMap.get(course.course_code) || null}
             newText={newSubtaskText[course.id] || ''}
             newDate={newSubtaskDate[course.id] || ''}
             newHp={newSubtaskHp[course.id] || ''}
@@ -603,16 +635,19 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [filterSearch, setFilterSearch] = useState('');
   const [filterYear, setFilterYear] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterSubject, setFilterSubject] = useState<string>('all');
   const [filterUnmetOnly, setFilterUnmetOnly] = useState(false);
 
   const resetFilters = () => {
     setFilterSearch('');
     setFilterYear('all');
     setFilterStatus('all');
+    setFilterSubject('all');
     setFilterUnmetOnly(false);
   };
   const hasActiveFilters =
-    filterSearch.trim() !== '' || filterYear !== 'all' || filterStatus !== 'all' || filterUnmetOnly;
+    filterSearch.trim() !== '' || filterYear !== 'all' || filterStatus !== 'all'
+    || filterSubject !== 'all' || filterUnmetOnly;
 
   const programTemplate = useMemo(() => {
     if (!programName) return null;
@@ -636,10 +671,22 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
   const prereqMap = useMemo(() => buildPrereqMap(programTemplate), [programTemplate]);
   const blocksMap = useMemo(() => buildBlocksMap(programTemplate), [programTemplate]);
+  const originalReqMap = useMemo(() => buildOriginalReqMap(programTemplate), [programTemplate]);
   const courseNameMap = useMemo(
     () => buildCourseNameMap(programTemplate, courses, allBthCourses),
     [programTemplate, courses, allBthCourses],
   );
+  const subjectMap = useMemo(() => {
+    const m = new Map<string, string>();
+    const add = (code: string, explicit?: string | null) => {
+      if (m.has(code)) return;
+      m.set(code, resolveSubject(code, explicit).primary);
+    };
+    if (programTemplate) for (const c of programTemplate.courses) add(c.code, c.subject);
+    for (const c of allBthCourses) add(c.code, c.subject);
+    for (const c of courses) add(c.course_code);
+    return m;
+  }, [programTemplate, allBthCourses, courses]);
 
   useEffect(() => {
     fetchData();
@@ -862,19 +909,25 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       if (q && !c.course_code.toLowerCase().includes(q) && !c.course_name.toLowerCase().includes(q)) return false;
       if (filterYear !== 'all' && String(c.year) !== filterYear) return false;
       if (filterStatus !== 'all' && c.status !== filterStatus) return false;
+      if (filterSubject !== 'all' && (subjectMap.get(c.course_code) || 'Okänt huvudområde') !== filterSubject) return false;
       if (filterUnmetOnly) {
         const ps = getPrereqStatus(c.course_code);
         if (!ps || ps.allMet) return false;
       }
       return true;
     });
-  }, [courses, filterSearch, filterYear, filterStatus, filterUnmetOnly, prereqMap]);
+  }, [courses, filterSearch, filterYear, filterStatus, filterSubject, filterUnmetOnly, prereqMap, subjectMap]);
 
   const filteredGroupedByYear = useMemo(() => groupCoursesByYear(filteredCourses), [filteredCourses]);
   const availableYears = useMemo(
     () => Array.from(new Set(courses.map(c => c.year))).sort((a, b) => a - b),
     [courses],
   );
+  const availableSubjects = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of courses) set.add(subjectMap.get(c.course_code) || 'Okänt huvudområde');
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'sv'));
+  }, [courses, subjectMap]);
 
   if (loading) {
     return (
@@ -944,6 +997,15 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                 <SelectItem value="completed">✅ Avklarad</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filterSubject} onValueChange={setFilterSubject}>
+              <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="Huvudområde" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla huvudområden</SelectItem>
+                {availableSubjects.map(s => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant={filterUnmetOnly ? 'default' : 'outline'}
@@ -982,6 +1044,8 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               newSubtaskType={newSubtaskType}
               blocksMap={blocksMap}
               courseNameMap={courseNameMap}
+              subjectMap={subjectMap}
+              originalReqMap={originalReqMap}
               getPrereqStatus={getPrereqStatus}
               onUpdateStatus={updateStatus}
               onDelete={(id, name) => setPendingCourseDelete({ id, name })}
