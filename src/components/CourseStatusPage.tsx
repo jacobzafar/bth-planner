@@ -909,19 +909,25 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
       if (q && !c.course_code.toLowerCase().includes(q) && !c.course_name.toLowerCase().includes(q)) return false;
       if (filterYear !== 'all' && String(c.year) !== filterYear) return false;
       if (filterStatus !== 'all' && c.status !== filterStatus) return false;
+      if (filterSubject !== 'all' && (subjectMap.get(c.course_code) || 'Okänt huvudområde') !== filterSubject) return false;
       if (filterUnmetOnly) {
         const ps = getPrereqStatus(c.course_code);
         if (!ps || ps.allMet) return false;
       }
       return true;
     });
-  }, [courses, filterSearch, filterYear, filterStatus, filterUnmetOnly, prereqMap]);
+  }, [courses, filterSearch, filterYear, filterStatus, filterSubject, filterUnmetOnly, prereqMap, subjectMap]);
 
   const filteredGroupedByYear = useMemo(() => groupCoursesByYear(filteredCourses), [filteredCourses]);
   const availableYears = useMemo(
     () => Array.from(new Set(courses.map(c => c.year))).sort((a, b) => a - b),
     [courses],
   );
+  const availableSubjects = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of courses) set.add(subjectMap.get(c.course_code) || 'Okänt huvudområde');
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'sv'));
+  }, [courses, subjectMap]);
 
   if (loading) {
     return (
