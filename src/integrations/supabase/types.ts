@@ -143,6 +143,60 @@ export type Database = {
         }
         Relationships: []
       }
+      course_prerequisites: {
+        Row: {
+          created_at: string
+          id: string
+          logic_group: number | null
+          original_text: string | null
+          required_course_id: string | null
+          required_hp: number | null
+          required_subject_area: string | null
+          requirement_type: Database["public"]["Enums"]["course_requirement_type"]
+          target_course_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logic_group?: number | null
+          original_text?: string | null
+          required_course_id?: string | null
+          required_hp?: number | null
+          required_subject_area?: string | null
+          requirement_type: Database["public"]["Enums"]["course_requirement_type"]
+          target_course_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logic_group?: number | null
+          original_text?: string | null
+          required_course_id?: string | null
+          required_hp?: number | null
+          required_subject_area?: string | null
+          requirement_type?: Database["public"]["Enums"]["course_requirement_type"]
+          target_course_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_prerequisites_required_course_id_fkey"
+            columns: ["required_course_id"]
+            isOneToOne: false
+            referencedRelation: "courses_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_prerequisites_target_course_id_fkey"
+            columns: ["target_course_id"]
+            isOneToOne: false
+            referencedRelation: "courses_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_subtasks: {
         Row: {
           completed: boolean
@@ -196,6 +250,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      courses_catalog: {
+        Row: {
+          active: boolean
+          course_code: string
+          course_name: string
+          created_at: string
+          hp: number
+          id: string
+          level: string | null
+          original_prerequisite_text: string | null
+          subject_area: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          course_code: string
+          course_name: string
+          created_at?: string
+          hp?: number
+          id?: string
+          level?: string | null
+          original_prerequisite_text?: string | null
+          subject_area?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          course_code?: string
+          course_name?: string
+          created_at?: string
+          hp?: number
+          id?: string
+          level?: string | null
+          original_prerequisite_text?: string | null
+          subject_area?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       dm_messages: {
         Row: {
@@ -312,6 +405,87 @@ export type Database = {
           setup_complete?: boolean | null
           start_year?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      program_courses: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          mandatory: boolean
+          period: string | null
+          program_id: string
+          semester: string | null
+          sort_order: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          mandatory?: boolean
+          period?: string | null
+          program_id: string
+          semester?: string | null
+          sort_order?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          mandatory?: boolean
+          period?: string | null
+          program_id?: string
+          semester?: string | null
+          sort_order?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_courses_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_courses_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programs_catalog: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          total_hp: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          total_hp?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          total_hp?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -492,6 +666,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin"
+      course_requirement_type:
+        | "completed_course"
+        | "attended_course"
+        | "completed_hp_in_course"
+        | "completed_hp_in_subject"
+        | "completed_total_hp"
+        | "custom_text"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -620,6 +801,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin"],
+      course_requirement_type: [
+        "completed_course",
+        "attended_course",
+        "completed_hp_in_course",
+        "completed_hp_in_subject",
+        "completed_total_hp",
+        "custom_text",
+      ],
     },
   },
 } as const
