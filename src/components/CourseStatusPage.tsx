@@ -571,7 +571,7 @@ interface YearSectionProps {
   courseNameMap: Map<string, string>;
   subjectMap: Map<string, string>;
   originalReqMap: Map<string, string>;
-  getPrereqStatus: (code: string) => PrereqStatus | null;
+  getRequirementResults: (code: string) => RequirementResult[];
   onUpdateStatus: (id: string, s: CourseStatus) => void;
   onDelete: (id: string, name: string) => void;
   onToggleExpanded: (id: string) => void;
