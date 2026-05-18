@@ -406,7 +406,7 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
             <TrendingUp className="h-5 w-5 text-primary" />
             Studieframsteg
             <InfoPopover label="Så beräknas studieframsteg">
-              Studieframsteg visar hur många HP du har klarat av i relation till programmets totala HP. Delvis avklarade moment visas separat och räknas inte som helt avklarad kurs.
+              Studieframsteg visar hur många HP du har tjänat ihop av programmets totala HP. Avklarade delmoment med HP räknas in i framsteget, men dubbelräknas inte om hela kursen är avklarad.
             </InfoPopover>
           </CardTitle>
         </CardHeader>
