@@ -717,6 +717,44 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     return m;
   }, [programTemplate, allBthCourses, courses]);
 
+  const requirementsMap = useMemo(() => {
+    const m = new Map<string, CourseRequirement[]>();
+    if (programTemplate) {
+      for (const c of programTemplate.courses) {
+        const reqs = normalizeRequirements(c);
+        if (reqs.length) m.set(c.code, reqs);
+      }
+    }
+    return m;
+  }, [programTemplate]);
+
+  const evalContext = useMemo(() => {
+    const courseIdToCode = new Map(courses.map(c => [c.id, c.course_code]));
+    return {
+      courses: courses.map(c => ({
+        course_code: c.course_code,
+        status: c.status,
+        hp: c.hp,
+        subject: subjectMap.get(c.course_code) || null,
+      })),
+      subtasks: subtasks.map(s => ({
+        course_code: courseIdToCode.get(s.course_id) || '',
+        completed: s.completed,
+        hp: s.hp,
+      })),
+    };
+  }, [courses, subtasks, subjectMap]);
+
+  const getRequirementResults = (code: string): RequirementResult[] => {
+    const reqs = requirementsMap.get(code);
+    if (!reqs || reqs.length === 0) return [];
+    const tmplCourse = programTemplate?.courses.find(c => c.code === code);
+    const courseLike = tmplCourse
+      ? { code: tmplCourse.code, requirements: reqs }
+      : { code, requirements: reqs };
+    return evaluateCourseRequirements(courseLike, evalContext, { nameMap: courseNameMap }).results;
+  };
+
   useEffect(() => {
     fetchData();
   }, [userId]);
