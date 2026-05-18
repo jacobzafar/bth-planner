@@ -224,7 +224,7 @@ export default function RiskOverview({
     const more = a.hardUnmet.length > 3 ? ` +${a.hardUnmet.length - 3}` : '';
     return {
       key: `b-${a.course.course_code}`,
-      text: `${blocked} (år ${a.course.year}) – kräver ${items}${more}`,
+      text: `${blocked} (år ${a.course.year}) – kräver avklarad kurs: ${items}${more}`,
     };
   });
 
@@ -233,12 +233,14 @@ export default function RiskOverview({
     .sort((a, b) => a.course.year - b.course.year)
     .map(a => {
       const courseLabel = fmtCourse(a.course.course_code, nameOf(a.course.course_code));
-      const missing = [...a.hardUnmet, ...a.softUnmet];
-      const items = missing.slice(0, 3).map(p => fmtCourse(p, nameOf(p))).join(', ');
-      const more = missing.length > 3 ? ` +${missing.length - 3}` : '';
+      const hard = a.hardUnmet.map(p => fmtCourse(p, nameOf(p)));
+      const soft = a.softUnmet.map(p => fmtCourse(p, nameOf(p)));
+      const parts: string[] = [];
+      if (hard.length) parts.push(`avklarad kurs: ${hard.slice(0, 3).join(', ')}${hard.length > 3 ? ` +${hard.length - 3}` : ''}`);
+      if (soft.length) parts.push(`genomgången/påbörjad kurs: ${soft.slice(0, 3).join(', ')}${soft.length > 3 ? ` +${soft.length - 3}` : ''}`);
       return {
         key: `u-${a.course.course_code}`,
-        text: `${courseLabel} – år ${a.course.year} – kräver ${items}${more}`,
+        text: `${courseLabel} – år ${a.course.year} – kräver ${parts.join(' · ')}`,
       };
     });
 
