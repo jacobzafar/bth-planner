@@ -2,9 +2,14 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, ShieldAlert, BookOpen, Lock, Info, Sparkles } from 'lucide-react';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
+import { COURSE_STATUS_LABEL } from '@/lib/events';
 
 interface CourseRow {
   course_code: string;
