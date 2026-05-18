@@ -376,10 +376,29 @@ export default function RiskOverview({
       <Dialog open={metric !== null} onOpenChange={(o) => { if (!o) setMetric(null); }}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading">
-              {metric === 'overdue' && 'Ej avklarade kurser'}
-              {metric === 'missing' && 'Saknade förkunskaper'}
-              {metric === 'blocked' && 'Spärrade kurser'}
+            <DialogTitle className="font-heading flex items-center gap-2">
+              <span>
+                {metric === 'overdue' && 'Ej avklarade kurser'}
+                {metric === 'missing' && 'Saknade förkunskaper'}
+                {metric === 'blocked' && 'Spärrade kurser'}
+              </span>
+              {(metric === 'missing' || metric === 'blocked') && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Om förkunskapskrav"
+                      className="inline-flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" align="start" className="w-72 text-sm">
+                    Förkunskapskrav kan betyda olika saker: en kurs kan behöva vara avklarad,
+                    påbörjad/genomgången, eller kräva ett visst antal HP inom en kurs eller ett huvudområde.
+                  </PopoverContent>
+                </Popover>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -404,7 +423,7 @@ export default function RiskOverview({
 
           {metric === 'missing' && (
             upcomingMissing.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Inga kommande kurser med saknade förkunskaper hittades.</p>
+              <p className="text-sm text-muted-foreground">Inga saknade förkunskaper hittades just nu.</p>
             ) : (
               <ul className="space-y-2">
                 {upcomingMissing.map(a => {

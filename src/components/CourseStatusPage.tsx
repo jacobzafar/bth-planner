@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square, RotateCcw } from 'lucide-react';
+import { Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square, RotateCcw, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,7 +17,13 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
-import { resolveSubject, primarySubject } from '@/lib/prerequisites';
+import {
+  resolveSubject, normalizeRequirements, evaluateCourseRequirements,
+  type CourseRequirement, type RequirementResult,
+} from '@/lib/prerequisites';
+
+const PREREQ_TOOLTIP =
+  'Förkunskapskrav kan betyda olika saker: en kurs kan behöva vara avklarad, påbörjad/genomgången, eller kräva ett visst antal HP inom en kurs eller ett huvudområde.';
 
 interface CourseStatusPageProps {
   userId: string;
@@ -221,38 +227,55 @@ function AddCourseDialog({
 }
 
 function PrereqInfo({
-  prereqStatus, blocks, courseNameMap, originalText,
+  requirementResults, blocks, courseNameMap, originalText,
 }: {
-  prereqStatus: PrereqStatus | null;
+  requirementResults: RequirementResult[];
   blocks: string[] | undefined;
   courseNameMap: Map<string, string>;
   originalText?: string | null;
 }) {
-  const hasPrereqs = prereqStatus && prereqStatus.prereqs.length > 0;
+  const hasReqs = requirementResults.length > 0;
   const hasBlocks = blocks && blocks.length > 0;
   const hasOriginal = !!originalText;
-  if (!hasPrereqs && !hasBlocks && !hasOriginal) return null;
+  if (!hasReqs && !hasBlocks && !hasOriginal) return null;
 
   return (
-    <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
-      {hasPrereqs && (
-        <div className="flex items-start gap-1.5 text-xs">
-          <Lock className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
-          <span className="text-muted-foreground">
-            Förkunskapskrav:{' '}
-            {prereqStatus!.prereqs.map((code, i) => {
-              const met = !prereqStatus!.unmetPrereqs.includes(code);
-              const name = courseNameMap.get(code);
+    <div className="mt-2 pt-2 border-t border-border/50 space-y-1.5">
+      {hasReqs && (
+        <div className="text-xs">
+          <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+            <Lock className="h-3 w-3 shrink-0" />
+            <span className="font-medium">Förkunskapskrav</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Om förkunskapskrav"
+                  className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                >
+                  <Info className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs">
+                {PREREQ_TOOLTIP}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <ul className="space-y-0.5 pl-4">
+            {requirementResults.map((r, i) => {
+              const colorClass = r.fulfilled
+                ? 'text-success'
+                : r.severity === 'soft' ? 'text-warning' : 'text-warning font-medium';
               return (
-                <span key={code}>
-                  {i > 0 && ', '}
-                  <span className={met ? 'text-success' : 'text-warning font-medium'}>
-                    {code}{name ? ` (${name})` : ''}
-                  </span>
-                </span>
+                <li key={i} className={colorClass}>
+                  {r.fulfilled ? '✓ ' : '• '}{r.message}
+                  {r.progress && !r.fulfilled && (
+                    <span className="text-muted-foreground"> ({r.progress.current.toFixed(0)}/{r.progress.required} HP)</span>
+                  )}
+                </li>
               );
             })}
-          </span>
+          </ul>
         </div>
       )}
       {hasOriginal && (
@@ -422,7 +445,7 @@ function SubtasksSection({
 
 interface CourseCardProps {
   course: UserCourse;
-  prereqStatus: PrereqStatus | null;
+  requirementResults: RequirementResult[];
   blocks: string[] | undefined;
   courseNameMap: Map<string, string>;
   courseSubtasks: Subtask[];
@@ -447,7 +470,7 @@ interface CourseCardProps {
 
 function CourseCard(props: CourseCardProps) {
   const {
-    course, prereqStatus, blocks, courseNameMap, courseSubtasks, isExpanded,
+    course, requirementResults, blocks, courseNameMap, courseSubtasks, isExpanded,
     subjectPrimary, originalReqText,
     newText, newDate, newHp, newType,
     onUpdateStatus, onDelete, onToggleExpanded,
@@ -456,20 +479,26 @@ function CourseCard(props: CourseCardProps) {
   } = props;
 
   const completedSubs = courseSubtasks.filter(s => s.completed).length;
-  const unmet = prereqStatus && !prereqStatus.allMet && course.status === 'not_started';
+  const hasUnmet = requirementResults.some(r => !r.fulfilled);
+  const unmet = hasUnmet && course.status === 'not_started';
   const cardClass = unmet ? 'border-warning/30' : '';
+  const subjectLabel = subjectPrimary && subjectPrimary !== 'Okänt huvudområde' ? subjectPrimary : null;
 
   return (
     <Card className={cardClass}>
       <CardContent className="p-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[180px]">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
-              <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
-              {subjectPrimary && subjectPrimary !== 'Okänt huvudområde' && (
-                <Badge variant="secondary" className="text-xs">{subjectPrimary}</Badge>
+            <div className="flex items-center gap-2 flex-wrap text-sm">
+              <span className="font-mono font-semibold text-foreground">{course.course_code}</span>
+              {subjectLabel && (
+                <>
+                  <span className="text-muted-foreground" aria-hidden="true">·</span>
+                  <span className="text-muted-foreground">{subjectLabel}</span>
+                </>
               )}
+              <span className="text-muted-foreground" aria-hidden="true">·</span>
+              <span className="text-muted-foreground">{course.hp} HP</span>
               {courseSubtasks.length > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {completedSubs}/{courseSubtasks.length} delmoment
@@ -506,7 +535,7 @@ function CourseCard(props: CourseCardProps) {
         </div>
 
         <PrereqInfo
-          prereqStatus={prereqStatus}
+          requirementResults={requirementResults}
           blocks={blocks}
           courseNameMap={courseNameMap}
           originalText={originalReqText}
@@ -542,7 +571,7 @@ interface YearSectionProps {
   courseNameMap: Map<string, string>;
   subjectMap: Map<string, string>;
   originalReqMap: Map<string, string>;
-  getPrereqStatus: (code: string) => PrereqStatus | null;
+  getRequirementResults: (code: string) => RequirementResult[];
   onUpdateStatus: (id: string, s: CourseStatus) => void;
   onDelete: (id: string, name: string) => void;
   onToggleExpanded: (id: string) => void;
@@ -559,7 +588,7 @@ function YearSection(props: YearSectionProps) {
   const {
     year, yearCourses, stats, subtasks, expandedCourses,
     newSubtaskText, newSubtaskDate, newSubtaskHp, newSubtaskType,
-    blocksMap, courseNameMap, subjectMap, originalReqMap, getPrereqStatus,
+    blocksMap, courseNameMap, subjectMap, originalReqMap, getRequirementResults,
     onUpdateStatus, onDelete, onToggleExpanded,
     setNewSubtaskText, setNewSubtaskDate, setNewSubtaskHp, setNewSubtaskType,
     onToggleSubtask, onDeleteSubtask, onAddSubtask,
@@ -581,7 +610,7 @@ function YearSection(props: YearSectionProps) {
           <CourseCard
             key={course.id}
             course={course}
-            prereqStatus={getPrereqStatus(course.course_code)}
+            requirementResults={getRequirementResults(course.course_code)}
             blocks={blocksMap.get(course.course_code)}
             courseNameMap={courseNameMap}
             courseSubtasks={subtasks.filter(s => s.course_id === course.id)}
@@ -687,6 +716,44 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
     for (const c of courses) add(c.course_code);
     return m;
   }, [programTemplate, allBthCourses, courses]);
+
+  const requirementsMap = useMemo(() => {
+    const m = new Map<string, CourseRequirement[]>();
+    if (programTemplate) {
+      for (const c of programTemplate.courses) {
+        const reqs = normalizeRequirements(c);
+        if (reqs.length) m.set(c.code, reqs);
+      }
+    }
+    return m;
+  }, [programTemplate]);
+
+  const evalContext = useMemo(() => {
+    const courseIdToCode = new Map(courses.map(c => [c.id, c.course_code]));
+    return {
+      courses: courses.map(c => ({
+        course_code: c.course_code,
+        status: c.status,
+        hp: c.hp,
+        subject: subjectMap.get(c.course_code) || null,
+      })),
+      subtasks: subtasks.map(s => ({
+        course_code: courseIdToCode.get(s.course_id) || '',
+        completed: s.completed,
+        hp: s.hp,
+      })),
+    };
+  }, [courses, subtasks, subjectMap]);
+
+  const getRequirementResults = (code: string): RequirementResult[] => {
+    const reqs = requirementsMap.get(code);
+    if (!reqs || reqs.length === 0) return [];
+    const tmplCourse = programTemplate?.courses.find(c => c.code === code);
+    const courseLike = tmplCourse
+      ? { code: tmplCourse.code, requirements: reqs }
+      : { code, requirements: reqs };
+    return evaluateCourseRequirements(courseLike, evalContext, { nameMap: courseNameMap }).results;
+  };
 
   useEffect(() => {
     fetchData();
@@ -1026,9 +1093,18 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
         <TooltipProvider>
           {sortedYearEntries.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Inga kurser matchar filtren.
-            </p>
+            <div className="text-center py-8 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {courses.length === 0
+                  ? 'Du har inga kurser ännu. Lägg till en kurs för att komma igång.'
+                  : 'Inga kurser matchar de valda filtren.'}
+              </p>
+              {courses.length > 0 && hasActiveFilters && (
+                <Button type="button" variant="outline" size="sm" onClick={resetFilters} className="gap-1.5">
+                  <X className="h-3.5 w-3.5" /> Rensa filter
+                </Button>
+              )}
+            </div>
           )}
           {sortedYearEntries.map(([year, yearCourses]) => (
             <YearSection
@@ -1046,7 +1122,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               courseNameMap={courseNameMap}
               subjectMap={subjectMap}
               originalReqMap={originalReqMap}
-              getPrereqStatus={getPrereqStatus}
+              getRequirementResults={getRequirementResults}
               onUpdateStatus={updateStatus}
               onDelete={(id, name) => setPendingCourseDelete({ id, name })}
               onToggleExpanded={toggleExpanded}
