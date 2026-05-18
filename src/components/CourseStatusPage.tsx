@@ -1093,9 +1093,18 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
         <TooltipProvider>
           {sortedYearEntries.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Inga kurser matchar filtren.
-            </p>
+            <div className="text-center py-8 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {courses.length === 0
+                  ? 'Du har inga kurser ännu. Lägg till en kurs för att komma igång.'
+                  : 'Inga kurser matchar de valda filtren.'}
+              </p>
+              {courses.length > 0 && hasActiveFilters && (
+                <Button type="button" variant="outline" size="sm" onClick={resetFilters} className="gap-1.5">
+                  <X className="h-3.5 w-3.5" /> Rensa filter
+                </Button>
+              )}
+            </div>
           )}
           {sortedYearEntries.map(([year, yearCourses]) => (
             <YearSection
