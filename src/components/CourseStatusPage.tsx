@@ -1113,7 +1113,7 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               courseNameMap={courseNameMap}
               subjectMap={subjectMap}
               originalReqMap={originalReqMap}
-              getPrereqStatus={getPrereqStatus}
+              getRequirementResults={getRequirementResults}
               onUpdateStatus={updateStatus}
               onDelete={(id, name) => setPendingCourseDelete({ id, name })}
               onToggleExpanded={toggleExpanded}
