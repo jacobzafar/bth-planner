@@ -209,15 +209,19 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     })
     .map(x => x.event);
 
-  const thisWeek = upcomingEvents.filter(e => {
+  const thisWeekEvents = upcomingEvents.filter(e => {
     const diff = (new Date(e.due_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff >= 0 && diff <= 7;
-  }).length;
-
-  const nextWeek = upcomingEvents.filter(e => {
+  });
+  const nextWeekEvents = upcomingEvents.filter(e => {
     const diff = (new Date(e.due_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff > 7 && diff <= 14;
-  }).length;
+  });
+  const thisWeek = thisWeekEvents.length;
+  const nextWeek = nextWeekEvents.length;
+  const completedCourses = courses.filter(c => c.status === 'completed');
+  const partlyCoursesAll = courses.filter(c => c.status === 'partly');
+  const notStartedCoursesAll = courses.filter(c => c.status === 'not_started');
 
   const toggleStatus = async () => {
     if (!selected) return;
