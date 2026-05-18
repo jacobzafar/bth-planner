@@ -227,38 +227,55 @@ function AddCourseDialog({
 }
 
 function PrereqInfo({
-  prereqStatus, blocks, courseNameMap, originalText,
+  requirementResults, blocks, courseNameMap, originalText,
 }: {
-  prereqStatus: PrereqStatus | null;
+  requirementResults: RequirementResult[];
   blocks: string[] | undefined;
   courseNameMap: Map<string, string>;
   originalText?: string | null;
 }) {
-  const hasPrereqs = prereqStatus && prereqStatus.prereqs.length > 0;
+  const hasReqs = requirementResults.length > 0;
   const hasBlocks = blocks && blocks.length > 0;
   const hasOriginal = !!originalText;
-  if (!hasPrereqs && !hasBlocks && !hasOriginal) return null;
+  if (!hasReqs && !hasBlocks && !hasOriginal) return null;
 
   return (
-    <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
-      {hasPrereqs && (
-        <div className="flex items-start gap-1.5 text-xs">
-          <Lock className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
-          <span className="text-muted-foreground">
-            Förkunskapskrav:{' '}
-            {prereqStatus!.prereqs.map((code, i) => {
-              const met = !prereqStatus!.unmetPrereqs.includes(code);
-              const name = courseNameMap.get(code);
+    <div className="mt-2 pt-2 border-t border-border/50 space-y-1.5">
+      {hasReqs && (
+        <div className="text-xs">
+          <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+            <Lock className="h-3 w-3 shrink-0" />
+            <span className="font-medium">Förkunskapskrav</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Om förkunskapskrav"
+                  className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                >
+                  <Info className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs">
+                {PREREQ_TOOLTIP}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <ul className="space-y-0.5 pl-4">
+            {requirementResults.map((r, i) => {
+              const colorClass = r.fulfilled
+                ? 'text-success'
+                : r.severity === 'soft' ? 'text-warning' : 'text-warning font-medium';
               return (
-                <span key={code}>
-                  {i > 0 && ', '}
-                  <span className={met ? 'text-success' : 'text-warning font-medium'}>
-                    {code}{name ? ` (${name})` : ''}
-                  </span>
-                </span>
+                <li key={i} className={colorClass}>
+                  {r.fulfilled ? '✓ ' : '• '}{r.message}
+                  {r.progress && !r.fulfilled && (
+                    <span className="text-muted-foreground"> ({r.progress.current.toFixed(0)}/{r.progress.required} HP)</span>
+                  )}
+                </li>
               );
             })}
-          </span>
+          </ul>
         </div>
       )}
       {hasOriginal && (
