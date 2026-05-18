@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
 import RiskOverview from '@/components/RiskOverview';
 import EventFormFields from '@/components/EventFormFields';
-import { EVENT_TYPE_LABEL as TYPE_LABEL, EVENT_STATUS_LABEL as STATUS_LABEL, parseHpInput } from '@/lib/events';
+import { EVENT_TYPE_LABEL as TYPE_LABEL, EVENT_STATUS_LABEL as STATUS_LABEL, COURSE_STATUS_LABEL, parseHpInput } from '@/lib/events';
 
 interface DashboardProps {
   userId: string;
