@@ -940,8 +940,8 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               <SelectContent>
                 <SelectItem value="all">Alla statusar</SelectItem>
                 <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
-                <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
-                <SelectItem value="completed">✅ Helt avklarad</SelectItem>
+                <SelectItem value="partly">🟡 Påbörjad</SelectItem>
+                <SelectItem value="completed">✅ Avklarad</SelectItem>
               </SelectContent>
             </Select>
             <Button
