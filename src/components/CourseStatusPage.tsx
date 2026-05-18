@@ -997,6 +997,15 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
                 <SelectItem value="completed">✅ Avklarad</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filterSubject} onValueChange={setFilterSubject}>
+              <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="Huvudområde" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla huvudområden</SelectItem>
+                {availableSubjects.map(s => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant={filterUnmetOnly ? 'default' : 'outline'}
