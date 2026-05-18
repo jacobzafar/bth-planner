@@ -610,7 +610,7 @@ function YearSection(props: YearSectionProps) {
           <CourseCard
             key={course.id}
             course={course}
-            prereqStatus={getPrereqStatus(course.course_code)}
+            requirementResults={getRequirementResults(course.course_code)}
             blocks={blocksMap.get(course.course_code)}
             courseNameMap={courseNameMap}
             courseSubtasks={subtasks.filter(s => s.course_id === course.id)}
