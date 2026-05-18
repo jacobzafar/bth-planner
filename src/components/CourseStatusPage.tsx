@@ -427,6 +427,8 @@ interface CourseCardProps {
   courseNameMap: Map<string, string>;
   courseSubtasks: Subtask[];
   isExpanded: boolean;
+  subjectPrimary?: string | null;
+  originalReqText?: string | null;
   newText: string;
   newDate: string;
   newHp: string;
@@ -446,6 +448,7 @@ interface CourseCardProps {
 function CourseCard(props: CourseCardProps) {
   const {
     course, prereqStatus, blocks, courseNameMap, courseSubtasks, isExpanded,
+    subjectPrimary, originalReqText,
     newText, newDate, newHp, newType,
     onUpdateStatus, onDelete, onToggleExpanded,
     setNewText, setNewDate, setNewHp, setNewType,
@@ -461,9 +464,12 @@ function CourseCard(props: CourseCardProps) {
       <CardContent className="p-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[180px]">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
               <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
+              {subjectPrimary && subjectPrimary !== 'Okänt huvudområde' && (
+                <Badge variant="secondary" className="text-xs">{subjectPrimary}</Badge>
+              )}
               {courseSubtasks.length > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {completedSubs}/{courseSubtasks.length} delmoment
@@ -499,7 +505,12 @@ function CourseCard(props: CourseCardProps) {
           </div>
         </div>
 
-        <PrereqInfo prereqStatus={prereqStatus} blocks={blocks} courseNameMap={courseNameMap} />
+        <PrereqInfo
+          prereqStatus={prereqStatus}
+          blocks={blocks}
+          courseNameMap={courseNameMap}
+          originalText={originalReqText}
+        />
 
         <SubtasksSection
           course={course}
