@@ -475,16 +475,19 @@ export default function RiskOverview({
 }
 
 function MetricCard({
-  icon, label, value, emphasize,
-}: { icon: React.ReactNode; label: string; value: number; emphasize?: boolean }) {
+  icon, label, value, emphasize, onClick,
+}: { icon: React.ReactNode; label: string; value: number; emphasize?: boolean; onClick?: () => void }) {
+  const className = `text-left w-full rounded-lg border p-2.5 sm:p-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+    emphasize ? 'border-warning/40 bg-warning/5 hover:bg-warning/10' : 'border-border bg-muted/30 hover:bg-muted/50'
+  }`;
   return (
-    <div className={`rounded-lg border p-2.5 sm:p-3 ${emphasize ? 'border-warning/40 bg-warning/5' : 'border-border bg-muted/30'}`}>
+    <button type="button" onClick={onClick} className={className}>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
         {icon}
         <span className="truncate">{label}</span>
       </div>
       <p className="text-2xl font-heading font-bold text-foreground leading-none">{value}</p>
-    </div>
+    </button>
   );
 }
 
