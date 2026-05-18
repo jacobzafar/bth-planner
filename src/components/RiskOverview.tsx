@@ -284,30 +284,33 @@ export default function RiskOverview({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <MetricCard
+            icon={<BookOpen className="h-4 w-4 text-muted-foreground" />}
+            label="Ej avklarade kurser"
+            value={overdueCourses.length}
+            onClick={() => setMetric('overdue')}
+          />
+          <MetricCard
+            icon={<AlertTriangle className="h-4 w-4 text-warning" />}
+            label="Saknade förkunskaper"
+            value={upcomingMissing.length}
+            emphasize={upcomingMissing.length > 0}
+            onClick={() => setMetric('missing')}
+          />
+          <MetricCard
+            icon={<Lock className="h-4 w-4 text-destructive" />}
+            label="Spärrade kurser"
+            value={blockedCourses.length}
+            emphasize={blockedCourses.length > 0}
+            onClick={() => setMetric('blocked')}
+          />
+        </div>
+
         {noRisks ? (
           <p className="text-sm text-muted-foreground">Inga risker upptäckta just nu. Bra jobbat!</p>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <MetricCard
-                icon={<BookOpen className="h-4 w-4 text-muted-foreground" />}
-                label="Ej avklarade kurser"
-                value={overdueCourses.length}
-              />
-              <MetricCard
-                icon={<AlertTriangle className="h-4 w-4 text-warning" />}
-                label="Saknade förkunskaper"
-                value={upcomingMissing.length}
-                emphasize={upcomingMissing.length > 0}
-              />
-              <MetricCard
-                icon={<Lock className="h-4 w-4 text-destructive" />}
-                label="Spärrade kurser"
-                value={blockedCourses.length}
-                emphasize={blockedCourses.length > 0}
-              />
-            </div>
-
             {recs.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
@@ -367,6 +370,106 @@ export default function RiskOverview({
           </>
         )}
       </CardContent>
+
+      <Dialog open={metric !== null} onOpenChange={(o) => { if (!o) setMetric(null); }}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading">
+              {metric === 'overdue' && 'Ej avklarade kurser'}
+              {metric === 'missing' && 'Saknade förkunskaper'}
+              {metric === 'blocked' && 'Spärrade kurser'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {metric === 'overdue' && (
+            overdueCourses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Inga ej avklarade kurser från tidigare eller nuvarande år.</p>
+            ) : (
+              <ul className="space-y-2">
+                {overdueCourses.map(c => (
+                  <li key={c.course_code} className="rounded-md border p-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-sm font-semibold text-foreground">{c.course_code}</span>
+                      <Badge variant="outline" className="text-xs">År {c.year}</Badge>
+                      <Badge variant="secondary" className="text-xs">{COURSE_STATUS_LABEL[c.status] || c.status}</Badge>
+                    </div>
+                    {c.course_name && <p className="text-sm text-muted-foreground mt-1">{c.course_name}</p>}
+                  </li>
+                ))}
+              </ul>
+            )
+          )}
+
+          {metric === 'missing' && (
+            upcomingMissing.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Inga kommande kurser med saknade förkunskaper hittades.</p>
+            ) : (
+              <ul className="space-y-2">
+                {upcomingMissing.map(a => {
+                  const missing = [...a.hardUnmet, ...a.softUnmet];
+                  return (
+                    <li key={a.course.course_code} className="rounded-md border p-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-sm font-semibold text-foreground">{a.course.course_code}</span>
+                        <Badge variant="outline" className="text-xs">År {a.course.year}</Badge>
+                      </div>
+                      {nameOf(a.course.course_code) && (
+                        <p className="text-sm text-muted-foreground mt-1">{nameOf(a.course.course_code)}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2 mb-1">Saknade förkunskaper:</p>
+                      <ul className="space-y-1">
+                        {missing.map(p => {
+                          const k = prereqKind(p);
+                          const statusLabel = k === 'soft' ? 'Påbörjad' : 'Ej påbörjad';
+                          return (
+                            <li key={p} className="flex items-center gap-2 text-sm">
+                              <span className="font-mono font-semibold">{p}</span>
+                              {nameOf(p) && <span className="text-muted-foreground truncate">{nameOf(p)}</span>}
+                              <Badge variant={k === 'soft' ? 'secondary' : 'outline'} className="text-xs ml-auto">{statusLabel}</Badge>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            )
+          )}
+
+          {metric === 'blocked' && (
+            blockedCourses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Inga spärrade kurser hittades just nu.</p>
+            ) : (
+              <ul className="space-y-2">
+                {blockedCourses.map(a => (
+                  <li key={a.course.course_code} className="rounded-md border p-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-sm font-semibold text-foreground">{a.course.course_code}</span>
+                      <Badge variant="outline" className="text-xs">År {a.course.year}</Badge>
+                      <Badge variant="destructive" className="text-xs">Spärrad</Badge>
+                    </div>
+                    {nameOf(a.course.course_code) && (
+                      <p className="text-sm text-muted-foreground mt-1">{nameOf(a.course.course_code)}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Kräver att följande förkunskap(er) startas eller avklaras:
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {a.hardUnmet.map(p => (
+                        <li key={p} className="flex items-center gap-2 text-sm">
+                          <span className="font-mono font-semibold">{p}</span>
+                          {nameOf(p) && <span className="text-muted-foreground truncate">{nameOf(p)}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
