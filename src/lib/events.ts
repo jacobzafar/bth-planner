@@ -15,6 +15,18 @@ export const EVENT_STATUS_LABEL: Record<string, string> = {
   overdue: 'Försenad',
 };
 
+/**
+ * Visible labels for course statuses. Internal values are unchanged:
+ * - completed -> "Avklarad" (previously "Helt avklarad")
+ * - partly    -> "Påbörjad" (previously "Delvis avklarad")
+ * - not_started -> "Ej påbörjad"
+ */
+export const COURSE_STATUS_LABEL: Record<string, string> = {
+  completed: 'Avklarad',
+  partly: 'Påbörjad',
+  not_started: 'Ej påbörjad',
+};
+
 export const EVENT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'exam', label: '📋 Tenta' },
   { value: 'assignment', label: '📝 Uppgift' },

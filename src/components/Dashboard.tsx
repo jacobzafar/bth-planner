@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
 import RiskOverview from '@/components/RiskOverview';
 import EventFormFields from '@/components/EventFormFields';
-import { EVENT_TYPE_LABEL as TYPE_LABEL, EVENT_STATUS_LABEL as STATUS_LABEL, parseHpInput } from '@/lib/events';
+import { EVENT_TYPE_LABEL as TYPE_LABEL, EVENT_STATUS_LABEL as STATUS_LABEL, COURSE_STATUS_LABEL, parseHpInput } from '@/lib/events';
 
 interface DashboardProps {
   userId: string;
@@ -64,6 +64,7 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
   const [selected, setSelected] = useState<StudyEvent | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [metricDetail, setMetricDetail] = useState<null | 'thisWeek' | 'nextWeek' | 'completed' | 'total'>(null);
 
   // edit form state
   const [fTitle, setFTitle] = useState('');
@@ -208,15 +209,19 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
     })
     .map(x => x.event);
 
-  const thisWeek = upcomingEvents.filter(e => {
+  const thisWeekEvents = upcomingEvents.filter(e => {
     const diff = (new Date(e.due_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff >= 0 && diff <= 7;
-  }).length;
-
-  const nextWeek = upcomingEvents.filter(e => {
+  });
+  const nextWeekEvents = upcomingEvents.filter(e => {
     const diff = (new Date(e.due_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff > 7 && diff <= 14;
-  }).length;
+  });
+  const thisWeek = thisWeekEvents.length;
+  const nextWeek = nextWeekEvents.length;
+  const completedCourses = courses.filter(c => c.status === 'completed');
+  const partlyCoursesAll = courses.filter(c => c.status === 'partly');
+  const notStartedCoursesAll = courses.filter(c => c.status === 'not_started');
 
   const toggleStatus = async () => {
     if (!selected) return;
@@ -401,7 +406,7 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
             <TrendingUp className="h-5 w-5 text-primary" />
             Studieframsteg
             <InfoPopover label="Så beräknas studieframsteg">
-              Studieframsteg visar hur många HP du har klarat av i relation till programmets totala HP. Delvis avklarade moment visas separat och räknas inte som helt avklarad kurs.
+              Studieframsteg visar hur många HP du har tjänat ihop av programmets totala HP. Avklarade delmoment med HP räknas in i framsteget, men dubbelräknas inte om hela kursen är avklarad.
             </InfoPopover>
           </CardTitle>
         </CardHeader>
@@ -430,42 +435,30 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
 
       {/* Snabbstatistik */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <CalendarDays className="h-8 w-8 text-info" />
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">{thisWeek}</p>
-              <p className="text-xs text-muted-foreground">Denna vecka</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <Clock className="h-8 w-8 text-muted-foreground" />
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">{nextWeek}</p>
-              <p className="text-xs text-muted-foreground">Nästa vecka</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <CheckCircle2 className="h-8 w-8 text-success" />
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">{courseStats.completed}</p>
-              <p className="text-xs text-muted-foreground">Avklarade kurser</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">{courseStats.total}</p>
-              <p className="text-xs text-muted-foreground">Totalt kurser</p>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricButton
+          icon={<CalendarDays className="h-8 w-8 text-info" />}
+          value={thisWeek}
+          label="Denna vecka"
+          onClick={() => setMetricDetail('thisWeek')}
+        />
+        <MetricButton
+          icon={<Clock className="h-8 w-8 text-muted-foreground" />}
+          value={nextWeek}
+          label="Nästa vecka"
+          onClick={() => setMetricDetail('nextWeek')}
+        />
+        <MetricButton
+          icon={<CheckCircle2 className="h-8 w-8 text-success" />}
+          value={courseStats.completed}
+          label="Avklarade kurser"
+          onClick={() => setMetricDetail('completed')}
+        />
+        <MetricButton
+          icon={<BookOpen className="h-8 w-8 text-primary" />}
+          value={courseStats.total}
+          label="Totalt kurser"
+          onClick={() => setMetricDetail('total')}
+        />
       </div>
 
       {/* Fokus näst */}
@@ -553,6 +546,18 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
       />
 
       {/* Detail modal */}
+      <MetricDetailDialog
+        kind={metricDetail}
+        onClose={() => setMetricDetail(null)}
+        thisWeekEvents={thisWeekEvents}
+        nextWeekEvents={nextWeekEvents}
+        completedCourses={completedCourses}
+        partlyCourses={partlyCoursesAll}
+        notStartedCourses={notStartedCoursesAll}
+        totalCount={courseStats.total}
+        getEventHp={getHpForEvent}
+      />
+
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setEditing(false); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           {selected && !editing && (
@@ -677,5 +682,132 @@ function InfoPopover({ label, children }: { label: string; children: React.React
         {children}
       </PopoverContent>
     </Popover>
+  );
+}
+
+function MetricButton({
+  icon, value, label, onClick,
+}: { icon: React.ReactNode; value: number; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-left rounded-lg border bg-card hover:bg-muted/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <div className="p-4 flex items-center gap-3">
+        {icon}
+        <div>
+          <p className="text-2xl font-heading font-bold text-foreground">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+interface MetricDetailDialogProps {
+  kind: null | 'thisWeek' | 'nextWeek' | 'completed' | 'total';
+  onClose: () => void;
+  thisWeekEvents: StudyEvent[];
+  nextWeekEvents: StudyEvent[];
+  completedCourses: CourseData[];
+  partlyCourses: CourseData[];
+  notStartedCourses: CourseData[];
+  totalCount: number;
+  getEventHp: (e: StudyEvent) => number;
+}
+
+function MetricDetailDialog({
+  kind, onClose, thisWeekEvents, nextWeekEvents,
+  completedCourses, partlyCourses, notStartedCourses, totalCount, getEventHp,
+}: MetricDetailDialogProps) {
+  const open = kind !== null;
+  let title = '';
+  let body: React.ReactNode = null;
+
+  if (kind === 'thisWeek' || kind === 'nextWeek') {
+    const list = kind === 'thisWeek' ? thisWeekEvents : nextWeekEvents;
+    title = kind === 'thisWeek' ? 'Denna vecka' : 'Nästa vecka';
+    body = list.length === 0 ? (
+      <p className="text-sm text-muted-foreground">Inga händelser i denna period.</p>
+    ) : (
+      <ul className="space-y-2">
+        {list.map(e => {
+          const hp = getEventHp(e);
+          return (
+            <li key={e.id} className="rounded-md border p-3">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="font-semibold text-sm text-foreground">{e.title}</span>
+                <Badge variant="secondary" className="text-xs">{TYPE_LABEL[e.event_type] || e.event_type}</Badge>
+                {hp > 0 && <Badge variant="outline" className="text-xs">{hp} HP</Badge>}
+                <Badge variant={e.status === 'complete' ? 'default' : 'secondary'} className="text-xs">
+                  {STATUS_LABEL[e.status] || e.status}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {format(new Date(e.due_date), 'EEE d MMM yyyy', { locale: sv })}
+                {e.due_time ? ` · ${e.due_time.slice(0,5)}` : ''}
+                {e.course_code ? ` · ${e.course_code}` : ''}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  } else if (kind === 'completed') {
+    title = 'Avklarade kurser';
+    body = completedCourses.length === 0 ? (
+      <p className="text-sm text-muted-foreground">Inga avklarade kurser ännu.</p>
+    ) : (
+      <ul className="space-y-2">
+        {completedCourses.map(c => (
+          <li key={c.id} className="rounded-md border p-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono text-sm font-semibold text-foreground">{c.course_code}</span>
+              <Badge variant="outline" className="text-xs">{c.hp} HP</Badge>
+              <Badge variant="outline" className="text-xs">År {c.year}</Badge>
+            </div>
+            {c.course_name && <p className="text-sm text-muted-foreground mt-1">{c.course_name}</p>}
+          </li>
+        ))}
+      </ul>
+    );
+  } else if (kind === 'total') {
+    title = 'Totalt kurser';
+    body = (
+      <div className="space-y-3">
+        <div className="grid grid-cols-3 gap-2">
+          <StatTile label="Avklarade" value={completedCourses.length} />
+          <StatTile label="Påbörjade" value={partlyCourses.length} />
+          <StatTile label="Ej påbörjade" value={notStartedCourses.length} />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Totalt {totalCount} kurser i din studieplan.
+        </p>
+        <Link to="/courses">
+          <Button variant="outline" size="sm" className="w-full">Gå till kurser</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-heading">{title}</DialogTitle>
+        </DialogHeader>
+        {body}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border p-3 text-center">
+      <p className="text-2xl font-heading font-bold text-foreground leading-none">{value}</p>
+      <p className="text-xs text-muted-foreground mt-1">{label}</p>
+    </div>
   );
 }
