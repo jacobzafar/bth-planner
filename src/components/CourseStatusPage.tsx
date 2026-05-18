@@ -668,10 +668,22 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
 
   const prereqMap = useMemo(() => buildPrereqMap(programTemplate), [programTemplate]);
   const blocksMap = useMemo(() => buildBlocksMap(programTemplate), [programTemplate]);
+  const originalReqMap = useMemo(() => buildOriginalReqMap(programTemplate), [programTemplate]);
   const courseNameMap = useMemo(
     () => buildCourseNameMap(programTemplate, courses, allBthCourses),
     [programTemplate, courses, allBthCourses],
   );
+  const subjectMap = useMemo(() => {
+    const m = new Map<string, string>();
+    const add = (code: string, explicit?: string | null) => {
+      if (m.has(code)) return;
+      m.set(code, resolveSubject(code, explicit).primary);
+    };
+    if (programTemplate) for (const c of programTemplate.courses) add(c.code, c.subject);
+    for (const c of allBthCourses) add(c.code, c.subject);
+    for (const c of courses) add(c.course_code);
+    return m;
+  }, [programTemplate, allBthCourses, courses]);
 
   useEffect(() => {
     fetchData();
