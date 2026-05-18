@@ -635,16 +635,19 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
   const [filterSearch, setFilterSearch] = useState('');
   const [filterYear, setFilterYear] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterSubject, setFilterSubject] = useState<string>('all');
   const [filterUnmetOnly, setFilterUnmetOnly] = useState(false);
 
   const resetFilters = () => {
     setFilterSearch('');
     setFilterYear('all');
     setFilterStatus('all');
+    setFilterSubject('all');
     setFilterUnmetOnly(false);
   };
   const hasActiveFilters =
-    filterSearch.trim() !== '' || filterYear !== 'all' || filterStatus !== 'all' || filterUnmetOnly;
+    filterSearch.trim() !== '' || filterYear !== 'all' || filterStatus !== 'all'
+    || filterSubject !== 'all' || filterUnmetOnly;
 
   const programTemplate = useMemo(() => {
     if (!programName) return null;
