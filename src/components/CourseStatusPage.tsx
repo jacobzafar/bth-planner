@@ -540,6 +540,8 @@ interface YearSectionProps {
   newSubtaskType: Record<string, SubtaskType>;
   blocksMap: Map<string, string[]>;
   courseNameMap: Map<string, string>;
+  subjectMap: Map<string, string>;
+  originalReqMap: Map<string, string>;
   getPrereqStatus: (code: string) => PrereqStatus | null;
   onUpdateStatus: (id: string, s: CourseStatus) => void;
   onDelete: (id: string, name: string) => void;
