@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square, RotateCcw } from 'lucide-react';
+import { Save, Lock, ArrowRight, AlertCircle, Trash2, Plus, Search, X, ChevronDown, ChevronRight, Check, Square, RotateCcw, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,7 +17,13 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
-import { resolveSubject, primarySubject } from '@/lib/prerequisites';
+import {
+  resolveSubject, normalizeRequirements, evaluateCourseRequirements,
+  type CourseRequirement, type RequirementResult,
+} from '@/lib/prerequisites';
+
+const PREREQ_TOOLTIP =
+  'Förkunskapskrav kan betyda olika saker: en kurs kan behöva vara avklarad, påbörjad/genomgången, eller kräva ett visst antal HP inom en kurs eller ett huvudområde.';
 
 interface CourseStatusPageProps {
   userId: string;
