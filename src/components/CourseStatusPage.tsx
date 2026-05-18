@@ -588,7 +588,7 @@ function YearSection(props: YearSectionProps) {
   const {
     year, yearCourses, stats, subtasks, expandedCourses,
     newSubtaskText, newSubtaskDate, newSubtaskHp, newSubtaskType,
-    blocksMap, courseNameMap, subjectMap, originalReqMap, getPrereqStatus,
+    blocksMap, courseNameMap, subjectMap, originalReqMap, getRequirementResults,
     onUpdateStatus, onDelete, onToggleExpanded,
     setNewSubtaskText, setNewSubtaskDate, setNewSubtaskHp, setNewSubtaskType,
     onToggleSubtask, onDeleteSubtask, onAddSubtask,
