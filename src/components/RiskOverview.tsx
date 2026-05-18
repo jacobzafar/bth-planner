@@ -278,8 +278,7 @@ export default function RiskOverview({
             </PopoverTrigger>
             <PopoverContent side="bottom" align="start" className="w-72 text-sm">
               Riskbilden baseras på ditt program, startår, kursstatus och förkunskapskrav.
-              Kurser som är delvis avklarade räknas som påbörjade och visas därför inte som
-              spärrade, även om någon förkunskap inte är helt klar.
+              Kurser som är påbörjade räknas inte som spärrade, även om någon förkunskap inte är helt klar.
             </PopoverContent>
           </Popover>
         </CardTitle>
