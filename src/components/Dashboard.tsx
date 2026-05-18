@@ -435,42 +435,30 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
 
       {/* Snabbstatistik */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <CalendarDays className="h-8 w-8 text-info" />
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">{thisWeek}</p>
-              <p className="text-xs text-muted-foreground">Denna vecka</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <Clock className="h-8 w-8 text-muted-foreground" />
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">{nextWeek}</p>
-              <p className="text-xs text-muted-foreground">Nästa vecka</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <CheckCircle2 className="h-8 w-8 text-success" />
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">{courseStats.completed}</p>
-              <p className="text-xs text-muted-foreground">Avklarade kurser</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">{courseStats.total}</p>
-              <p className="text-xs text-muted-foreground">Totalt kurser</p>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricButton
+          icon={<CalendarDays className="h-8 w-8 text-info" />}
+          value={thisWeek}
+          label="Denna vecka"
+          onClick={() => setMetricDetail('thisWeek')}
+        />
+        <MetricButton
+          icon={<Clock className="h-8 w-8 text-muted-foreground" />}
+          value={nextWeek}
+          label="Nästa vecka"
+          onClick={() => setMetricDetail('nextWeek')}
+        />
+        <MetricButton
+          icon={<CheckCircle2 className="h-8 w-8 text-success" />}
+          value={courseStats.completed}
+          label="Avklarade kurser"
+          onClick={() => setMetricDetail('completed')}
+        />
+        <MetricButton
+          icon={<BookOpen className="h-8 w-8 text-primary" />}
+          value={courseStats.total}
+          label="Totalt kurser"
+          onClick={() => setMetricDetail('total')}
+        />
       </div>
 
       {/* Fokus näst */}
