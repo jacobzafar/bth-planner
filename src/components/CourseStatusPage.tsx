@@ -221,15 +221,17 @@ function AddCourseDialog({
 }
 
 function PrereqInfo({
-  prereqStatus, blocks, courseNameMap,
+  prereqStatus, blocks, courseNameMap, originalText,
 }: {
   prereqStatus: PrereqStatus | null;
   blocks: string[] | undefined;
   courseNameMap: Map<string, string>;
+  originalText?: string | null;
 }) {
   const hasPrereqs = prereqStatus && prereqStatus.prereqs.length > 0;
   const hasBlocks = blocks && blocks.length > 0;
-  if (!hasPrereqs && !hasBlocks) return null;
+  const hasOriginal = !!originalText;
+  if (!hasPrereqs && !hasBlocks && !hasOriginal) return null;
 
   return (
     <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
@@ -252,6 +254,11 @@ function PrereqInfo({
             })}
           </span>
         </div>
+      )}
+      {hasOriginal && (
+        <p className="text-xs text-muted-foreground italic pl-4">
+          Originalkrav: {originalText}
+        </p>
       )}
       {hasBlocks && (
         <div className="flex items-start gap-1.5 text-xs">
