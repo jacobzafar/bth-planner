@@ -465,8 +465,8 @@ function CourseCard(props: CourseCardProps) {
             <Select value={course.status} onValueChange={(v) => onUpdateStatus(course.id, v as CourseStatus)}>
               <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="completed">✅ Helt avklarad</SelectItem>
-                <SelectItem value="partly">🟡 Delvis avklarad</SelectItem>
+                <SelectItem value="completed">✅ Avklarad</SelectItem>
+                <SelectItem value="partly">🟡 Påbörjad</SelectItem>
                 <SelectItem value="not_started">⬜ Ej påbörjad</SelectItem>
               </SelectContent>
             </Select>
