@@ -1044,6 +1044,8 @@ export default function CourseStatusPage({ userId, programName }: CourseStatusPa
               newSubtaskType={newSubtaskType}
               blocksMap={blocksMap}
               courseNameMap={courseNameMap}
+              subjectMap={subjectMap}
+              originalReqMap={originalReqMap}
               getPrereqStatus={getPrereqStatus}
               onUpdateStatus={updateStatus}
               onDelete={(id, name) => setPendingCourseDelete({ id, name })}
