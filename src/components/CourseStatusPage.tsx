@@ -586,6 +586,8 @@ function YearSection(props: YearSectionProps) {
             courseNameMap={courseNameMap}
             courseSubtasks={subtasks.filter(s => s.course_id === course.id)}
             isExpanded={expandedCourses.has(course.id)}
+            subjectPrimary={subjectMap.get(course.course_code) || null}
+            originalReqText={originalReqMap.get(course.course_code) || null}
             newText={newSubtaskText[course.id] || ''}
             newDate={newSubtaskDate[course.id] || ''}
             newHp={newSubtaskHp[course.id] || ''}
