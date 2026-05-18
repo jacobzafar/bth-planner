@@ -445,7 +445,7 @@ function SubtasksSection({
 
 interface CourseCardProps {
   course: UserCourse;
-  prereqStatus: PrereqStatus | null;
+  requirementResults: RequirementResult[];
   blocks: string[] | undefined;
   courseNameMap: Map<string, string>;
   courseSubtasks: Subtask[];
@@ -470,7 +470,7 @@ interface CourseCardProps {
 
 function CourseCard(props: CourseCardProps) {
   const {
-    course, prereqStatus, blocks, courseNameMap, courseSubtasks, isExpanded,
+    course, requirementResults, blocks, courseNameMap, courseSubtasks, isExpanded,
     subjectPrimary, originalReqText,
     newText, newDate, newHp, newType,
     onUpdateStatus, onDelete, onToggleExpanded,
@@ -479,20 +479,26 @@ function CourseCard(props: CourseCardProps) {
   } = props;
 
   const completedSubs = courseSubtasks.filter(s => s.completed).length;
-  const unmet = prereqStatus && !prereqStatus.allMet && course.status === 'not_started';
+  const hasUnmet = requirementResults.some(r => !r.fulfilled);
+  const unmet = hasUnmet && course.status === 'not_started';
   const cardClass = unmet ? 'border-warning/30' : '';
+  const subjectLabel = subjectPrimary && subjectPrimary !== 'Okänt huvudområde' ? subjectPrimary : null;
 
   return (
     <Card className={cardClass}>
       <CardContent className="p-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[180px]">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-sm font-semibold text-foreground">{course.course_code}</span>
-              <Badge variant="outline" className="text-xs">{course.hp} hp</Badge>
-              {subjectPrimary && subjectPrimary !== 'Okänt huvudområde' && (
-                <Badge variant="secondary" className="text-xs">{subjectPrimary}</Badge>
+            <div className="flex items-center gap-2 flex-wrap text-sm">
+              <span className="font-mono font-semibold text-foreground">{course.course_code}</span>
+              {subjectLabel && (
+                <>
+                  <span className="text-muted-foreground" aria-hidden="true">·</span>
+                  <span className="text-muted-foreground">{subjectLabel}</span>
+                </>
               )}
+              <span className="text-muted-foreground" aria-hidden="true">·</span>
+              <span className="text-muted-foreground">{course.hp} HP</span>
               {courseSubtasks.length > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {completedSubs}/{courseSubtasks.length} delmoment
@@ -529,7 +535,7 @@ function CourseCard(props: CourseCardProps) {
         </div>
 
         <PrereqInfo
-          prereqStatus={prereqStatus}
+          requirementResults={requirementResults}
           blocks={blocks}
           courseNameMap={courseNameMap}
           originalText={originalReqText}
