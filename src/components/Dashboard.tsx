@@ -546,6 +546,18 @@ export default function Dashboard({ userId, totalProgramHp, startYear }: Dashboa
       />
 
       {/* Detail modal */}
+      <MetricDetailDialog
+        kind={metricDetail}
+        onClose={() => setMetricDetail(null)}
+        thisWeekEvents={thisWeekEvents}
+        nextWeekEvents={nextWeekEvents}
+        completedCourses={completedCourses}
+        partlyCourses={partlyCoursesAll}
+        notStartedCourses={notStartedCoursesAll}
+        totalCount={courseStats.total}
+        getEventHp={getHpForEvent}
+      />
+
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setEditing(false); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           {selected && !editing && (
