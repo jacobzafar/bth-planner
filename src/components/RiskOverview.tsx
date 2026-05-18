@@ -40,6 +40,7 @@ export default function RiskOverview({
   upcomingEventsCount = 0, unfinishedSubtasksCount = 0,
 }: RiskOverviewProps) {
   const [expanded, setExpanded] = useState(false);
+  const [metric, setMetric] = useState<null | 'overdue' | 'missing' | 'blocked'>(null);
 
   const programTemplate = useMemo(
     () => (programName ? bthPrograms.find(p => p.name === programName) : null),
