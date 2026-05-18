@@ -14,10 +14,6 @@ import { bthPrograms } from '@/lib/programs';
 
 import CalendarPage from '@/components/CalendarPage';
 import SettingsPage from '@/components/SettingsPage';
-import ParticipantsPage from '@/components/ParticipantsPage';
-import MarketplacePage from '@/components/MarketplacePage';
-import AdminPage from '@/components/AdminPage';
-import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 const INTRO_KEY = 'bth_intro_shown';
 
@@ -123,15 +119,12 @@ export default function Index() {
   return (
     <>
       {showIntro && <IntroAnimation onDone={() => setShowIntro(false)} />}
-      <AppLayout programName={pName} startYear={profileData?.start_year ?? null} onLogout={handleLogout} userId={session.user.id}>
+      <AppLayout programName={pName} startYear={profileData?.start_year ?? null} onLogout={handleLogout}>
         <Routes>
           <Route path="/" element={<Dashboard userId={session.user.id} totalProgramHp={totalProgramHp} startYear={profileData?.start_year ?? null} />} />
           <Route path="/kurser" element={<CourseStatusPage userId={session.user.id} programName={pName} />} />
           <Route path="/add-event" element={<AddEventPage userId={session.user.id} />} />
           <Route path="/kalender" element={<CalendarPage userId={session.user.id} />} />
-          <Route path="/deltagare" element={<ParticipantsPage userId={session.user.id} />} />
-          <Route path="/bokhandel" element={<MarketplacePage userId={session.user.id} />} />
-          <Route path="/admin" element={<AdminPage userId={session.user.id} />} />
           <Route path="/installningar" element={<SettingsPage userId={session.user.id} email={session.user.email} programName={pName} startYear={profileData?.start_year || 0} onLogout={handleLogout} onResetPlan={() => checkProfile(session.user.id)} />} />
         </Routes>
       </AppLayout>

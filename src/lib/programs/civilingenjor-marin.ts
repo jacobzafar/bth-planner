@@ -48,9 +48,5 @@ export const civilingenjorMarin: ProgramTemplate = {
     { name: 'Sensorsystem', code: 'ET2628', hp: 6, year: 5, semester: 'HT' },
     { name: 'Mekatronik med robotik', code: 'ET2629', hp: 6, year: 5, semester: 'VT' },
     { name: 'Masterarbete i maskinteknik', code: 'MT2600', hp: 30, year: 5, semester: 'VT' },
-    // Valbara kurser (platshållare för att nå 300 HP)
-    {name:'Valbar kurs 1',code:'VAL-MA01',hp:6,year:4,semester:'HT'},
-    {name:'Valbar kurs 2',code:'VAL-MA02',hp:6,year:4,semester:'VT'},
-    {name:'Valbar kurs 3',code:'VAL-MA03',hp:6,year:5,semester:'HT'},
   ],
 };

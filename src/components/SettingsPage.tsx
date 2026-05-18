@@ -14,7 +14,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { bthPrograms } from '@/lib/programs';
 import { estimateStudyYear } from '@/lib/studyYear';
 import { toast } from 'sonner';
-import VisibilityCard from '@/components/VisibilityCard';
 
 interface SettingsPageProps {
   userId: string;
@@ -132,8 +131,6 @@ export default function SettingsPage({ userId, email, programName, startYear, on
           </div>
         </CardContent>
       </Card>
-
-      <VisibilityCard userId={userId} />
 
       {/* Study plan */}
       <Card>

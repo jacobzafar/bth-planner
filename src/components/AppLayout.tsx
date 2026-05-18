@@ -1,32 +1,24 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar, BookOpen, Settings, LogOut, GraduationCap, CalendarRange, Users, ShoppingBag, Shield } from 'lucide-react';
+import { LayoutDashboard, Calendar, BookOpen, Settings, LogOut, GraduationCap, CalendarRange } from 'lucide-react';
 import { estimateStudyYear } from '@/lib/studyYear';
-import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface AppLayoutProps {
   children: ReactNode;
   programName: string;
   startYear?: number | null;
   onLogout: () => void;
-  userId?: string;
 }
 
-const baseNavItems = [
+const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Översikt' },
   { to: '/kurser', icon: BookOpen, label: 'Kurser' },
   { to: '/kalender', icon: Calendar, label: 'Kalender' },
-  { to: '/deltagare', icon: Users, label: 'Deltagare' },
-  { to: '/bokhandel', icon: ShoppingBag, label: 'Bokhandel' },
   { to: '/installningar', icon: Settings, label: 'Inställningar' },
 ];
 
-export default function AppLayout({ children, programName, startYear, onLogout, userId }: AppLayoutProps) {
+export default function AppLayout({ children, programName, startYear, onLogout }: AppLayoutProps) {
   const location = useLocation();
-  const { isAdmin } = useIsAdmin(userId);
-  const navItems = isAdmin
-    ? [...baseNavItems, { to: '/admin', icon: Shield, label: 'Admin' }]
-    : baseNavItems;
   const cleanProgramName = programName.split(',')[0].trim();
   const estimate = startYear ? estimateStudyYear(startYear) : null;
   const showBadge = estimate && !estimate.uncertain;
