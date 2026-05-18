@@ -17,6 +17,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { bthPrograms } from '@/lib/programs';
+import { resolveSubject, primarySubject } from '@/lib/prerequisites';
 
 interface CourseStatusPageProps {
   userId: string;
