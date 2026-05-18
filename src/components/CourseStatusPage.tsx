@@ -64,11 +64,11 @@ interface PrereqStatus {
 // ---------- Helpers ----------
 
 function buildAllBthCourses() {
-  const map = new Map<string, { name: string; code: string; hp: number }>();
+  const map = new Map<string, { name: string; code: string; hp: number; subject?: string }>();
   for (const program of bthPrograms) {
     for (const course of program.courses) {
       if (!map.has(course.code)) {
-        map.set(course.code, { name: course.name, code: course.code, hp: course.hp });
+        map.set(course.code, { name: course.name, code: course.code, hp: course.hp, subject: course.subject });
       }
     }
   }
@@ -82,6 +82,15 @@ function buildPrereqMap(programTemplate: typeof bthPrograms[number] | null) {
     if (course.prerequisites && course.prerequisites.length > 0) {
       map.set(course.code, course.prerequisites);
     }
+  }
+  return map;
+}
+
+function buildOriginalReqMap(programTemplate: typeof bthPrograms[number] | null) {
+  const map = new Map<string, string>();
+  if (!programTemplate) return map;
+  for (const course of programTemplate.courses) {
+    if (course.originalRequirementsText) map.set(course.code, course.originalRequirementsText);
   }
   return map;
 }
