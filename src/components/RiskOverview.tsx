@@ -404,7 +404,7 @@ export default function RiskOverview({
 
           {metric === 'missing' && (
             upcomingMissing.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Inga kommande kurser med saknade förkunskaper hittades.</p>
+              <p className="text-sm text-muted-foreground">Inga saknade förkunskaper hittades just nu.</p>
             ) : (
               <ul className="space-y-2">
                 {upcomingMissing.map(a => {
